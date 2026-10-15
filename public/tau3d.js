@@ -772,11 +772,12 @@ function update(dt, adt) {
   for (let i = 0; i < 3; i++) { view.g[i] += (view.gT[i] - view.g[i]) * (1 - Math.exp(-dt / 0.6)); view.tint[i] += ((view.tintT[i] || 0) - view.tint[i]) * kp; }
   const n = rings.length, cs = cT;
   const total = rings.reduce((a, r) => a + 0.5 + r.nl * 1.5, 0) || 1; const rIn = 0.10, rOut = 0.37, gap = 0.005; const avail = rOut - rIn - gap * Math.max(0, n - 1);
+  const memGap = 0.004, memW = (i) => 0.25 + (n > 1 ? i / (n - 1) : 0), memSum = rings.reduce((a, _, i) => a + memW(i), 0) || 1, memAvail = 0.38 - 0.095 - memGap * Math.max(0, n - 1);
   let acc = rIn, memEdge = 0.095; // memory mode: inner rings thin and tight, outer rings taller bars with more room
   rings.forEach((r, i) => {
     const w = 0.5 + r.nl * 1.5, thc = (avail * w) / total; const rc = acc + thc / 2; acc += thc + gap;
     let tr, tth, ta0, tsp, tal, trw;
-    if (mode === 1) { const q = n > 1 ? i / (n - 1) : 0; tth = 0.006 + 0.016 * q * q + 0.004 * r.nl; tr = memEdge + tth * 0.5 + 0.0015; memEdge = tr + tth * 0.5 + 0.004; ta0 = -Math.PI / 2 + i * 1.05; tsp = 0.9 + 1.7 * r.nl; tal = 0.95; trw = 0.03; }
+    if (mode === 1) { tth = memAvail * memW(i) / memSum; tr = memEdge + tth * 0.5; memEdge = tr + tth * 0.5 + memGap; ta0 = -Math.PI / 2 + i * 1.05; tsp = 0.9 + 1.7 * r.nl; tal = 0.95; trw = 0.03; }
     else { tr = rc * cs; tth = thc * cs; ta0 = 0; tsp = TAU; tal = mode === 0 ? 1 : 0.6; trw = 1; }
     r.r += (tr - r.r) * k; r.th += (tth - r.th) * k; r.a0 += (ta0 - r.a0) * k; r.span += (tsp - r.span) * k; r.alpha += (tal - r.alpha) * k; r.rotW += (trw - r.rotW) * k;
     const s = r.s; const rec = Math.exp(-(Date.now() - new Date(s.last).getTime()) / 21600000);

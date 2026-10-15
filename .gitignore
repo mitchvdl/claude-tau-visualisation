@@ -1,0 +1,5 @@
+node_modules
+.env
+.claude-stats.pid
+.DS_Store
+screenshots/

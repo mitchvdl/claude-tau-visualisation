@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Claude Stats</title>
+  <link rel="icon"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23060a14'/%3E%3Cpath d='M3 12V8m3 4V4m3 8V6m3 6V9' stroke='%2322d3ee' stroke-width='2'/%3E%3C/svg%3E">
+  <script>
+    (function () {
+      try {
+        var q = new URLSearchParams(location.search).get('theme');
+        if (q === 'auto' || q === 'dark' || q === 'light') localStorage.setItem('claude-stats-theme', q);
+        var t = localStorage.getItem('claude-stats-theme');
+        if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) { /* storage unavailable: AUTO */ }
+    })();
+  </script>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div id="progress" class="progress" aria-hidden="true"></div>
+  <div class="wrap">
+    <header class="top">
+      <div class="brand">
+        <h1>CLAUDE <span class="sl">//</span> STATS</h1>
+        <div class="sub" id="home">&nbsp;</div>
+        <a class="taulink" href="/tau3d.html" title="Open the 3D TAU view (G)">TAU 3D ▽ (G)</a>
+      </div>
+      <div class="cfg" id="cfg"></div>
+      <div class="live">
+        <div class="live-row"><span class="dot" id="dot"></span><span id="liveTxt">CONNECTING</span></div>
+        <div class="sub" id="scanInfo">&nbsp;</div>
+      </div>
+      <div class="ctrls">
+        <div class="seg" id="theme" role="group" aria-label="Theme">
+          <button data-t="auto">Auto</button><button data-t="dark">Dark</button><button data-t="light">Light</button>
+        </div>
+        <div class="seg" id="win" role="group" aria-label="Time window">
+          <button data-w="today">Today</button><button data-w="7d">7d</button><button data-w="30d">30d</button><button
+            data-w="all">All</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="tiles" id="tiles"></section>
+
+    <section class="card" id="projCard">
+      <div class="card-h">
+        <h2>PROJECTIONS <span class="muted">based on history</span></h2><span class="sub" id="pace"></span>
+      </div>
+      <div class="tiles" id="projTiles"></div>
+      <div class="sub" id="projCaption">Projections assume the recent daily average continues. List API prices, not a
+        bill.</div>
+    </section>
+
+    <section class="card">
+      <div class="card-h">
+        <h2>Sessions <span class="muted">click a row for detail</span></h2>
+      </div>
+      <div class="tablewrap tall-t">
+        <table id="tSessions"></table>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card span2">
+        <div class="card-h">
+          <h2>Tokens per day by category</h2><span class="btns"><button class="mini" id="toggleCR" type="button">HIDE
+              CACHE READ</button> <button class="mini" id="toggleTable" type="button">TABLE</button></span>
+        </div>
+        <div class="chart tall" id="dailyWrap"><canvas id="cDaily" role="img"
+            aria-label="Stacked bars of tokens per day by category"></canvas></div>
+        <div class="tablewrap hidden" id="dailyTableWrap">
+          <table id="tDaily"></table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h">
+          <h2>Estimated cost per day</h2>
+        </div>
+        <div class="chart"><canvas id="cCost" role="img" aria-label="Line of estimated cost per day"></canvas></div>
+      </div>
+    </section>
+
+    <section class="card" id="tsCard">
+      <div class="card-h">
+        <h2>Tokens over time <span class="muted" id="tsCap"></span></h2><span class="btns"><span class="seg"
+            id="tsScope" role="group" aria-label="Scope"></span> <button class="mini" id="tsCR" type="button">HIDE CACHE
+            READ</button></span>
+      </div>
+      <div class="chips" id="tsChips"></div>
+      <div class="chart tall"><canvas id="cTs" role="img"
+          aria-label="Stacked bars of tokens per time bucket with a cost line"></canvas></div>
+    </section>
+
+
+
+    <section class="grid">
+      <div class="card">
+        <div class="card-h">
+          <h2>Tokens by model</h2>
+        </div>
+        <div class="chart"><canvas id="cModelTok" role="img" aria-label="Donut of tokens by model"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-h">
+          <h2>Estimated cost by model</h2>
+        </div>
+        <div class="chart"><canvas id="cModelCost" role="img" aria-label="Bars of estimated cost by model"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h">
+          <h2>Hour of day <span class="muted">API calls, all time, local</span></h2>
+        </div>
+        <div class="chart"><canvas id="cHours" role="img" aria-label="Histogram of API calls by hour of day"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h">
+          <h2>Effort <span class="muted">API calls, all time</span></h2>
+        </div>
+        <div class="chart"><canvas id="cEffort" role="img" aria-label="Bars of API calls by effort level"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h">
+          <h2>Service tier / speed / geo <span class="muted">all time</span></h2>
+        </div>
+        <div id="dist" class="dist"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-h">
+        <h2>Models</h2>
+      </div>
+      <div class="tablewrap">
+        <table id="tModels"></table>
+      </div>
+    </section>
+
+    <section class="card hidden" id="agentTypeCard">
+      <div class="card-h">
+        <h2>By agent type <span class="muted">main session vs subagent types, all time</span></h2>
+      </div>
+      <div class="tablewrap">
+        <table id="tAgentTypes"></table>
+      </div>
+    </section>
+    <section class="card">
+      <div class="card-h">
+        <h2>Tokens by day <span class="muted">UTC, selected window</span></h2>
+      </div>
+      <div class="tablewrap tall-t">
+        <table id="tByDay"></table>
+      </div>
+    </section>
+    <section class="card">
+      <div class="card-h">
+        <h2>Projects <span class="muted" id="projNote"></span></h2>
+      </div>
+      <div class="tablewrap">
+        <table id="tProjects"></table>
+      </div>
+    </section>
+
+    <section class="grid2">
+      <div class="card">
+        <div class="card-h">
+          <h2>Prompt feed <span class="muted">history.jsonl, last 100</span></h2>
+        </div>
+        <ul class="feed" id="feed"></ul>
+      </div>
+      <div class="card">
+        <div class="card-h">
+          <h2>Claude Code stats-cache <span class="muted">lifetime, may be stale</span></h2>
+        </div>
+        <dl class="kv" id="sc"></dl>
+        <div class="chart short"><canvas id="cScHours" role="img"
+            aria-label="Histogram of sessions by hour from stats cache"></canvas></div>
+      </div>
+    </section>
+
+    <footer id="foot"></footer>
+  </div>
+
+  <div class="backdrop" id="backdrop"></div>
+  <aside class="drawer" id="drawer" aria-hidden="true">
+    <button class="close" id="drawerClose" type="button" aria-label="Close">&times;</button>
+    <div id="drawerBody"></div>
+  </aside>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+
+</html>

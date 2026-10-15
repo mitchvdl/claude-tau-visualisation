@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TAU 3D</title>
+<link rel="stylesheet" href="tau3d.css">
+<script type="importmap">{"imports":{"three":"/vendor/three/three.module.js","three/addons/":"/vendor/three/addons/"}}</script>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div class="fx scan"></div>
+
+
+<div id="hud">
+  <div class="hc tl"><div class="h1">TAU <i>//</i> MEMORY CORE</div>
+    <div class="row"><span>TOKENS</span><b id="hTokens">-</b></div>
+    <div class="row"><span>EST. COST</span><b id="hCost">-</b></div></div>
+  <div class="hc tr">
+    <div class="row"><span>CACHE HIT</span><b id="hCache">-</b></div>
+    <div class="row"><span>AGENTS AWAKE</span><b id="hAgents">-</b></div>
+    <div class="row"><span>SESSIONS</span><b id="hSess">-</b></div>
+    <div class="row"><span>ISSUES</span><b id="hIssues">0</b></div>
+    <div class="row"><span>WAITING</span><b id="hWait">0</b></div></div>
+  <div class="hc bl">
+    <div class="row"><span>HOME</span><b id="hHome">-</b></div>
+    <div class="row"><span>LAST SCAN</span><b id="hScan">-</b></div>
+    <div class="row"><span>LINK</span><b id="hLink">...</b></div></div>
+  <div class="hc br">
+    <div class="row"><span>MODE</span><b id="hMode">CORE</b></div>
+    <div class="row"><span>PALETTE</span><b id="hPal">TAU</b></div>
+    <div class="hint">? for controls</div></div>
+</div>
+
+<div id="lbls"></div>
+<svg id="wsvg"></svg>
+<div id="wblk"></div>
+<div id="feed"><div class="ft"><span>tau://feed</span><i class="cur"></i></div><div id="feedBody"><div id="feedIn"></div></div></div>
+<div id="legend"></div>
+<div id="voice"></div>
+<div id="memcard" hidden></div>
+<div id="tip" hidden></div>
+<aside id="detail" hidden></aside>
+<div id="help" hidden></div>
+
+<script type="module" src="tau3d.js"></script>
+</body>
+</html>

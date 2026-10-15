@@ -1,0 +1,12 @@
+{
+  "name": "claude-stats",
+  "version": "1.0.0",
+  "description": "Local dashboard for Claude Code token usage, cache, sessions and estimated cost",
+  "type": "module",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/mitchvdl/claude-tau-visualisation.git" },
+  "scripts": { "start": "node src/server.js",
+    "stop": "node src/stop.js",
+    "restart": "node src/stop.js && node src/server.js" },
+  "engines": { "node": ">=22" }
+}

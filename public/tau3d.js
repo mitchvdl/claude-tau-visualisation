@@ -429,11 +429,12 @@ const arcBase = (() => { // position = (t along arc, profile u, profile v); aN =
   for (let s = 0; s < CS_DIV; s++) for (let k = 0; k < CS_N; k++) { const a = s * CS_N + k, b = s * CS_N + (k + 1) % CS_N, c = a + CS_N, d = b + CS_N; idx.push(a, c, b, b, c, d); }
   return { pos: new Float32Array(pos), nrm: new Float32Array(nrm), idx };
 })();
-const ringVS = `attribute vec3 aSeg; attribute vec2 aN; uniform float uR,uTh,uA0,uSpan,uRot,uK,uJit,uTaper; varying vec3 vN, vV; varying float vRand;
+const ringVS = `attribute vec3 aSeg; attribute vec2 aN; uniform float uR,uTh,uA0,uSpan,uRot,uK,uJit,uTaper,uBlk; varying vec3 vN, vV; varying float vRand;
 void main(){
   float xs=aSeg.x/uK; if(xs>=1.0){ gl_Position=vec4(2.,2.,2.,1.); return; }
   float t=position.x; float taper=1.-0.78*uTaper*pow(abs(2.*t-1.),5.);
   float ang=uA0+uRot+(xs+t*aSeg.y/uK)*uSpan;
+  if(uBlk>0.){ float cell=aSeg.y/uK; float lf=min(uBlk*(0.75+0.5*aSeg.z)/(uR*uSpan), cell*0.85); ang=uA0+uRot+(xs+cell*0.5+(t-0.5)*lf)*uSpan; }
   float rr=uR+position.y*uTh*0.5*taper+uJit*(aSeg.z-.5)*0.012;
   vec3 pos=vec3(cos(ang)*rr, -sin(ang)*rr, position.z*uTh*0.5*taper+uJit*(aSeg.z-.5)*0.02);
   vec3 n=vec3(cos(ang)*aN.x, -sin(ang)*aN.x, aN.y);
@@ -459,12 +460,12 @@ const arcBlock = (() => { // rectangular cross-section for the expansion-ring bl
   for (let s = 0; s < CS_DIV; s++) for (let k = 0; k < 4; k++) { const a = s * 4 + k, b = s * 4 + (k + 1) % 4, c = a + 4, d = b + 4; idx.push(a, c, b, b, c, d); }
   return { pos: new Float32Array(pos), nrm: new Float32Array(nrm), idx };
 })();
-function ringUniforms() { return { ...U, uR: { value: 0.2 }, uTh: { value: 0.01 }, uA0: { value: 0 }, uSpan: { value: TAU }, uRot: { value: 0 }, uK: { value: 1 }, uJit: { value: 0 }, uTaper: { value: 1 }, uWait: { value: 0 }, uBeacon: { value: new THREE.Vector3(0.4, 0.8, 1) }, uColor: { value: new THREE.Vector3(1, 0.5, 0.1) }, uHot: U.uHot, uAlpha: { value: 1 }, uInt: { value: 1.6 }, uSel: { value: 0 }, uBlink: { value: 1 }, uWarn: { value: 0 }, uErr: { value: 0 }, uDrop: { value: 0.1 } }; }
+function ringUniforms() { return { ...U, uR: { value: 0.2 }, uTh: { value: 0.01 }, uA0: { value: 0 }, uSpan: { value: TAU }, uRot: { value: 0 }, uK: { value: 1 }, uJit: { value: 0 }, uTaper: { value: 1 }, uBlk: { value: 0 }, uWait: { value: 0 }, uBeacon: { value: new THREE.Vector3(0.4, 0.8, 1) }, uColor: { value: new THREE.Vector3(1, 0.5, 0.1) }, uHot: U.uHot, uAlpha: { value: 1 }, uInt: { value: 1.6 }, uSel: { value: 0 }, uBlink: { value: 1 }, uWarn: { value: 0 }, uErr: { value: 0 }, uDrop: { value: 0.1 } }; }
 function buildRingObj(r) {
   if (r.obj) { ringsG.remove(r.obj); r.obj.geometry.dispose(); r.obj.material.dispose(); }
   const B = r.blocky || r.rect ? arcBlock : arcBase; const g = new THREE.InstancedBufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(B.pos, 3)); g.setAttribute('aN', new THREE.BufferAttribute(B.nrm, 2)); g.setIndex(B.idx);
-  const n = r.blocky ? r.cap : r.rect ? r.nSeg * 2 : r.nSeg, seg = r.blocky ? r.segArr : new Float32Array(n * 3);
-  if (!r.blocky) for (let k = 0; k < n; k++) { const step = 1 / n, len = step * (r.rect ? 0.3 + 0.32 * hash(r.seed, k) : 0.42 + 0.46 * hash(r.seed, k)); seg[k * 3] = k * step + (step - len) * 0.5; seg[k * 3 + 1] = len; seg[k * 3 + 2] = hash(r.seed + 7, k); }
+  const n = r.blocky ? r.cap : r.rect ? r.nSeg * 3 : r.nSeg, seg = r.blocky ? r.segArr : new Float32Array(n * 3);
+  if (!r.blocky) for (let k = 0; k < n; k++) { const step = 1 / n, len = r.rect ? step : step * (0.42 + 0.46 * hash(r.seed, k)); seg[k * 3] = k * step + (step - len) * 0.5; seg[k * 3 + 1] = len; seg[k * 3 + 2] = hash(r.seed + 7, k); }
   g.setAttribute('aSeg', new THREE.InstancedBufferAttribute(seg, 3)); g.instanceCount = r.blocky ? r.n : n;
   const m = new THREE.Mesh(g, new THREE.ShaderMaterial({ uniforms: ringUniforms(), vertexShader: ringVS, fragmentShader: ringFS, transparent: true, depthWrite: true, side: THREE.DoubleSide }));
   if (r.blocky || r.rect) m.material.uniforms.uTaper.value = 0; r.objRect = !!r.rect; m.frustumCulled = false; m.renderOrder = 2; r.obj = m; r.objN = r.blocky ? n : r.nSeg; ringsG.add(m);
@@ -865,7 +866,7 @@ function syncScene(now) {
     const selv = clamp(r.selK * 0.4 + r.hovK * 0.35, 0, 1);
     const span = Math.min(r.span, TAU);
     u.uColor.value.set(...lin(col, 0.9)); u.uAlpha.value = clamp(r.alpha, 0, 1); u.uInt.value = 0.7 * (0.55 + A * 0.7) + r.selK * 0.9; u.uSel.value = selv;
-    u.uR.value = r.r * (1 + 0.012 * breathR); u.uTh.value = Math.max(0.0045, r.th * (span > TAU - 0.05 ? 1.25 : 1)) * (1 + r.selK * 0.35 + r.waitK * 0.4 + 0.06 * breathR); u.uA0.value = r.a0; u.uSpan.value = span; u.uRot.value = r.rot * r.rotW; u.uK.value = span > TAU - 0.05 ? 1 : clamp(span / TAU, 0.22, 1);
+    u.uR.value = r.r * (1 + 0.012 * breathR); u.uTh.value = Math.max(0.0045, r.th * (span > TAU - 0.05 ? 1.25 : 1)) * (1 + r.selK * 0.35 + r.waitK * 0.4 + 0.06 * breathR); u.uBlk.value = r.rect ? u.uTh.value * 0.45 : 0; u.uA0.value = r.a0; u.uSpan.value = span; u.uRot.value = r.rot * r.rotW; u.uK.value = span > TAU - 0.05 ? 1 : clamp(span / TAU, 0.22, 1);
     // issues: error = hard red + irregular glitch/blink, warn = slow amber-red pulse
     const ek = r.errK || 0, wk = r.warnK || 0;
     if (ek > 0.01) { const burst = hash(Math.floor(T * 0.9), r.seed * 0.01) > 0.62; const slot = Math.floor(T * (burst ? 19 : 2.6)); const h = hash(slot, r.seed * 0.01 + 3); u.uBlink.value = lerp(1, h < (burst ? 0.5 : 0.1) ? 0.1 : 1.35, ek); u.uDrop.value = burst ? 0.62 : 0.14; u.uJit.value = burst && h < 0.35 ? ek : 0; }

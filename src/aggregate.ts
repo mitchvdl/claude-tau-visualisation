@@ -1,25 +1,26 @@
 // Accumulator helpers + shaping of scanner state into API payloads.
-import { cfg } from './config.js';
+import { cfg } from './config.ts';
+import type { Acc, AgentStat, AgentTypeTotals, AgentView, AvgRow, DayAcc, DayRow, FileState, Launch, LiveView, PendingTool, Projection, ProjectAcc, ScanMeta, ScannerState, Session, SessionDetail, SessionSummary, SummaryResponse, TimeseriesError, TimeseriesPoint, TimeseriesQuery, TimeseriesResult, TokenCounts, TsUsage, WaitEntry, WaitExtra, WaitInfo, WaitKind, WaitingRow } from './types.ts';
 
-export const newAcc = () => ({ input: 0, cw5: 0, cw1: 0, cr: 0, out: 0, thinking: 0, calls: 0, tools: 0, web: 0, cost: 0 });
-export function addTo(a, d) { for (const k in d) a[k] += d[k]; }
-const tokensOf = (a) => a.input + a.cw5 + a.cw1 + a.cr + a.out;
-const hitRatio = (a) => { const d = a.input + a.cr + a.cw5 + a.cw1; return d > 0 ? a.cr / d : 0; };
+export const newAcc = (): Acc => ({ input: 0, cw5: 0, cw1: 0, cr: 0, out: 0, thinking: 0, calls: 0, tools: 0, web: 0, cost: 0 });
+export function addTo(a: Acc, d: Partial<Acc>) { for (const k in d) a[k] += d[k]; }
+const tokensOf = (a: Acc): number => a.input + a.cw5 + a.cw1 + a.cr + a.out;
+const hitRatio = (a: Acc): number => { const d = a.input + a.cr + a.cw5 + a.cw1; return d > 0 ? a.cr / d : 0; };
 
-function titleOf(s, st) {
+function titleOf(s: Session, st: ScannerState): string {
   const ix = st.indexBySid.get(s.id);
   return s.title || (ix && ix.summary) || s.firstPrompt || (ix && ix.firstPrompt) || s.id.slice(0, 8);
 }
 
-const accTokens = (a) => ({ input: a.input, cacheWrite5m: a.cw5, cacheWrite1h: a.cw1, cacheRead: a.cr, output: a.out, thinking: a.thinking, total: tokensOf(a) });
-const isLive = (mtime, now) => now - mtime < cfg.activeWindowMin * 60000;
+const accTokens = (a: Acc): TokenCounts => ({ input: a.input, cacheWrite5m: a.cw5, cacheWrite1h: a.cw1, cacheRead: a.cr, output: a.out, thinking: a.thinking, total: tokensOf(a) });
+const isLive = (mtime: number, now: number): boolean => now - mtime < cfg.activeWindowMin * 60000;
 
 // ---- waiting for the user ----
 // Authoritative: sessions/<pid>.json written by Claude Code (status 'waiting' + a live pid). The transcript's pending tool_use map only enriches it
 // (which command / question). Sessions with no status file at all fall back to the old heuristic (idle transcript + pending tool call = 'maybe').
-const newest = (a, b) => ((b.ts || '') < (a.ts || '') ? -1 : 1);
-function mkWait(s, fi, p, kind, conf, extra = {}) {
-  const aid = fi && fi.isSub ? fi.agentId : null, a = aid ? s.agentStats.get(aid) : null, l = aid ? (s.launches.get(aid) || {}) : {};
+const newest = (a: PendingTool, b: PendingTool): number => ((b.ts || '') < (a.ts || '') ? -1 : 1);
+function mkWait(s: Session, fi: FileState | null, p: PendingTool | null, kind: WaitKind, conf: 'certain' | 'maybe', extra: WaitExtra = {}): WaitInfo {
+  const aid = fi && fi.isSub ? fi.agentId : null, a = aid ? s.agentStats.get(aid) : null, l: Partial<Launch> = aid ? (s.launches.get(aid) || {}) : {};
   const qs = (p && p.questions) || [];
   return {
     kind, confidence: conf, tool: p ? p.name : '', since: (p && p.ts) || null, agentId: aid,
@@ -29,18 +30,18 @@ function mkWait(s, fi, p, kind, conf, extra = {}) {
     waitingFor: extra.waitingFor || null, sessionName: extra.sessionName || null,
   };
 }
-const kindOf = (p) => (p.name === 'AskUserQuestion' ? 'question' : p.name === 'ExitPlanMode' ? 'plan' : 'permission');
+const kindOf = (p: PendingTool): WaitKind => (p.name === 'AskUserQuestion' ? 'question' : p.name === 'ExitPlanMode' ? 'plan' : 'permission');
 // sessionId -> { main: wait|null, agents: Map(agentId -> wait) }
-export function buildWaitMap(st, now = Date.now()) {
-  const m = new Map();
-  const put = (sid, w) => { let e = m.get(sid); if (!e) { e = { main: null, agents: new Map() }; m.set(sid, e); } if (w.agentId) e.agents.set(w.agentId, w); else e.main = w; };
-  const files = new Map(); // sid -> files with pending tool calls
+export function buildWaitMap(st: ScannerState, now = Date.now()): Map<string, WaitEntry> {
+  const m = new Map<string, WaitEntry>();
+  const put = (sid: string, w: WaitInfo) => { let e = m.get(sid); if (!e) { e = { main: null, agents: new Map() }; m.set(sid, e); } if (w.agentId) e.agents.set(w.agentId, w); else e.main = w; };
+  const files = new Map<string, FileState[]>(); // sid -> files with pending tool calls
   for (const fi of st.files.values()) if (fi.pending && fi.pending.size) { let a = files.get(fi.sid); if (!a) files.set(fi.sid, (a = [])); a.push(fi); }
   const live = st.live || new Map();
   for (const [sid, lv] of live) { // authoritative path
     if (!lv.alive || lv.status !== 'waiting') continue;
     const s = st.sessions.get(sid); if (!s) continue;
-    let best = null, bfi = null;
+    let best: PendingTool | null = null, bfi: FileState | null = null;
     for (const fi of files.get(sid) || []) for (const p of fi.pending.values()) if (!best || newest(p, best) < 0) { best = p; bfi = fi; }
     const wf = lv.waitingFor || '', extra = { waitingFor: wf, sessionName: lv.name || null };
     if (best) { const w = mkWait(s, bfi, best, kindOf(best), 'certain', extra); let n = 0; for (const fi of files.get(sid) || []) n += fi.pending.size; w.pendingCount = n; if (n > 1 && w.kind === 'permission') w.text += ` (+${n - 1} more pending)`; put(sid, w); }
@@ -58,14 +59,14 @@ export function buildWaitMap(st, now = Date.now()) {
   }
   return m;
 }
-export function liveView(st, id) {
+export function liveView(st: ScannerState, id: string): LiveView | null {
   const r = st.live && st.live.get(id); if (!r || !r.alive) return null;
   return { status: r.status, waitingFor: r.waitingFor, name: r.name, kind: r.kind, pid: r.pid, statusSince: r.statusSince };
 }
-const pickWait = (wm, id) => { const e = wm && wm.get(id); if (!e) return null; let best = null; const score = (w) => (w.confidence === 'certain' ? 2 : 0) + (w.agentId ? 0 : 1); for (const w of [e.main, ...e.agents.values()]) if (w && (!best || score(w) > score(best) || (score(w) === score(best) && (w.since || '') > (best.since || '')))) best = w; return best; };
+const pickWait = (wm: Map<string, WaitEntry> | null, id: string): WaitInfo | null => { const e = wm && wm.get(id); if (!e) return null; let best: WaitInfo | null = null; const score = (w: WaitInfo): number => (w.confidence === 'certain' ? 2 : 0) + (w.agentId ? 0 : 1); for (const w of [e.main, ...e.agents.values()]) if (w && (!best || score(w) > score(best) || (score(w) === score(best) && (w.since || '') > (best.since || '')))) best = w; return best; };
 
-function agentView(s, a, now, wm) {
-  const l = s.launches.get(a.id) || {};
+function agentView(s: Session, a: AgentStat, now: number, wm?: Map<string, WaitEntry> | null): AgentView {
+  const l: Partial<Launch> = s.launches.get(a.id) || {};
   const models = [...a.models];
   if (!models.length && (a.metaModel || l.model)) models.push(a.metaModel || l.model);
   return {
@@ -81,7 +82,7 @@ function agentView(s, a, now, wm) {
   };
 }
 
-export function sessionSummary(s, st, now = Date.now(), wm = null) {
+export function sessionSummary(s: Session, st: ScannerState, now = Date.now(), wm: Map<string, WaitEntry> | null = null): SessionSummary {
   const cs = s.cs;
   let activeAgents = 0, agentCost = 0, agentTok = 0;
   for (const a of s.agentStats.values()) {
@@ -122,11 +123,11 @@ export function sessionSummary(s, st, now = Date.now(), wm = null) {
   };
 }
 
-export function buildSessionList(st, { limit = 200, sort = 'last' } = {}) {
+export function buildSessionList(st: ScannerState, { limit = 200, sort = 'last' }: { limit?: number; sort?: string } = {}): SessionSummary[] {
   const now = Date.now();
   const wm = buildWaitMap(st, now);
   const all = [...st.sessions.values()].filter((s) => s.first || s.acc.calls).map((s) => sessionSummary(s, st, now, wm));
-  const keyf = sort === 'cost' ? (x) => x.cost : sort === 'tokens' ? (x) => x.tokens.total : (x) => Date.parse(x.last || 0) || 0;
+  const keyf: (x: SessionSummary) => number = sort === 'cost' ? (x) => x.cost : sort === 'tokens' ? (x) => x.tokens.total : (x) => Date.parse((x.last || 0) as string) || 0;
   all.sort((a, b) => keyf(b) - keyf(a));
   const top = all.slice(0, limit);
   const have = new Set(top.map((x) => x.id));
@@ -134,32 +135,32 @@ export function buildSessionList(st, { limit = 200, sort = 'last' } = {}) {
   return top;
 }
 
-export function buildSessionDetail(st, id) {
+export function buildSessionDetail(st: ScannerState, id: string): SessionDetail | null {
   const s = st.sessions.get(id);
   if (!s) return null;
   const now = Date.now(), wm = buildWaitMap(st, now);
   const base = sessionSummary(s, st, now, wm);
   const models = [...s.models.entries()].map(([model, a]) => ({ model, ...a, total: tokensOf(a), unknownPricing: !!a.unknownPricing }));
   const hourly = [...s.hourly.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([hour, v]) => ({ hour, ...v }));
-  const agents = [...s.agentStats.values()].map((a) => agentView(s, a, now, wm)).sort((a, b) => (Date.parse(b.last || 0) || 0) - (Date.parse(a.last || 0) || 0));
+  const agents = [...s.agentStats.values()].map((a) => agentView(s, a, now, wm)).sort((a, b) => (Date.parse((b.last || 0) as string) || 0) - (Date.parse((a.last || 0) as string) || 0));
   const main = { tokens: accTokens(s.main), cost: s.main.cost, calls: s.main.calls };
   const calls = s.calls.slice().sort((a, b) => a.t - b.t).slice(-3000);
   return { ...base, callCount: base.calls, calls, agents, main, prompts: s.prompts.slice(), models: models, perModel: models, hourly, cacheHit: hitRatio(s.acc) };
 }
 
 const DAY = 86400000;
-const iso = (ms) => new Date(ms).toISOString().slice(0, 10);
+const iso = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
 
-export function buildProjection(st, now = Date.now()) {
+export function buildProjection(st: ScannerState, now = Date.now()): Projection {
   const real = [...st.days.keys()].filter((k) => k !== 'unknown');
   if (real.length < 2) return { insufficient: true };
   const todayMs = Math.floor(now / DAY) * DAY;
-  const dayRow = (date) => {
+  const dayRow = (date: string): DayRow => {
     const d = st.days.get(date) || newAcc();
     return { date, input: d.input, cw5: d.cw5, cw1: d.cw1, cr: d.cr, out: d.out, calls: d.calls, cost: d.cost, prompts: st.histDays.get(date) || 0, total: d.input + d.cw5 + d.cw1 + d.cr + d.out, byModel: (st.days.get(date) || {}).byModel || {} };
   };
-  const lastN = (n) => Array.from({ length: n }, (_, i) => dayRow(iso(todayMs - (n - 1 - i) * DAY)));
-  const avg = (rows, div) => {
+  const lastN = (n: number): DayRow[] => Array.from({ length: n }, (_, i) => dayRow(iso(todayMs - (n - 1 - i) * DAY)));
+  const avg = (rows: DayRow[], div: number): AvgRow => {
     const a = { input: 0, cacheWrite: 0, cacheRead: 0, output: 0, total: 0, cost: 0, calls: 0 };
     for (const r of rows) { a.input += r.input; a.cacheWrite += r.cw5 + r.cw1; a.cacheRead += r.cr; a.output += r.out; a.total += r.total; a.cost += r.cost; a.calls += r.calls; }
     if (div > 0) for (const k in a) a[k] /= div;
@@ -191,13 +192,13 @@ export function buildProjection(st, now = Date.now()) {
   for (let ms = first; ms <= todayMs; ms += DAY) { const r = dayRow(iso(ms)); mt += r.total; mc += r.cost; }
   const monthToDate = { tokens: mt, cost: mc, daysElapsed, daysRemaining };
   const projectedMonth = {
-    cost: mc + daysRemaining * avg7.cost, tokens: mt + daysRemaining * avg7.total, basis: 'avg7',
+    cost: mc + daysRemaining * avg7.cost, tokens: mt + daysRemaining * avg7.total, basis: 'avg7' as const,
     costAlt: mc + daysRemaining * avg30.cost, tokensAlt: mt + daysRemaining * avg30.total,
   };
   const next7 = { cost: avg7.cost * 7, tokens: avg7.total * 7 };
   const next30 = { cost: avg7.cost * 30, tokens: avg7.total * 30 };
 
-  const mcost = {}; let tot30 = 0;
+  const mcost: Record<string, number> = {}; let tot30 = 0;
   for (const r of r30) for (const [m, a] of Object.entries(r.byModel)) { mcost[m] = (mcost[m] || 0) + a.cost; tot30 += a.cost; }
   const perModelMonth = Object.entries(mcost).map(([model, c]) => {
     const share = tot30 > 0 ? c / tot30 : 0;
@@ -209,7 +210,7 @@ export function buildProjection(st, now = Date.now()) {
   return { today, avg7, avg30, activeDays7: act7, activeDays30: act30, avgActive30, trend30, monthToDate, projectedMonth, next7, next30, perModelMonth, forecastDays, history };
 }
 
-export function buildSummary(st, scanMeta) {
+export function buildSummary(st: ScannerState, scanMeta: ScanMeta): SummaryResponse {
   const now = Date.now();
   let reported = 0;
   for (const s of st.sessions.values()) if (s.cs && typeof s.cs.totalCostUSD === 'number') reported += s.cs.totalCostUSD;
@@ -220,25 +221,25 @@ export function buildSummary(st, scanMeta) {
 
   const dayKeys = new Set([...st.days.keys(), ...st.histDays.keys()]);
   const perDay = [...dayKeys].sort().map((date) => {
-    const d = st.days.get(date) || { ...newAcc(), byModel: {} };
+    const d: DayAcc = st.days.get(date) || { ...newAcc(), byModel: {} };
     return { date, ...d, total: tokensOf(d), prompts: st.histDays.get(date) || 0 };
   });
 
   const perProject = [...st.projects.entries()].map(([cwd, p]) => ({
-    cwd, ...Object.fromEntries(Object.entries(p).filter(([k]) => k !== 'sessions')),
+    cwd, ...(Object.fromEntries(Object.entries(p).filter(([k]) => k !== 'sessions')) as Omit<ProjectAcc, 'sessions'>),
     total: tokensOf(p), sessions: p.sessions.size, prompts: st.histProjects.get(cwd) || 0,
   })).sort((a, b) => b.cost - a.cost);
 
   const sessions = [...st.sessions.values()];
   const wm = buildWaitMap(st, now);
   const active = sessions.filter((s) => now - s.mtime < cfg.activeWindowMin * 60000).map((s) => sessionSummary(s, st, now, wm));
-  const waiting = [];
+  const waiting: WaitingRow[] = [];
   for (const [sid, e] of wm) { const s = st.sessions.get(sid), ttl = s ? titleOf(s, st) : sid.slice(0, 8); for (const w of [e.main, ...e.agents.values()]) if (w) waiting.push({ sessionId: sid, sessionTitle: ttl, ...w }); }
   waiting.sort((a, b) => ((b.since || '') < (a.since || '') ? -1 : 1));
   active.sort((a, b) => b.mtime - a.mtime);
 
-  const perAgentType = {};
-  const bumpType = (type, tokens, cost) => {
+  const perAgentType: Record<string, AgentTypeTotals> = {};
+  const bumpType = (type: string, tokens: number, cost: number) => {
     const t = perAgentType[type] || (perAgentType[type] = { runs: 0, tokens: 0, cost: 0 });
     t.runs++; t.tokens += tokens; t.cost += cost;
   };
@@ -265,11 +266,11 @@ export function buildSummary(st, scanMeta) {
   };
 }
 
-const BUCKETS = { '1m': 60000, '5m': 300000, '1h': 3600000, '6h': 21600000, '1d': DAY };
-const DEFAULT_BUCKET = { today: '5m', '7d': '1h', '30d': '6h', all: '1d' };
+const BUCKETS: Record<string, number> = { '1m': 60000, '5m': 300000, '1h': 3600000, '6h': 21600000, '1d': DAY };
+const DEFAULT_BUCKET: Record<string, string> = { today: '5m', '7d': '1h', '30d': '6h', all: '1d' };
 
 // Usage per time bucket and model. Window starts at the same UTC-midnight cutoff as the UI's Today/7d/30d.
-export function buildTimeseries(st, { window = '7d', bucket, model, session, scope = 'all' } = {}, now = Date.now()) {
+export function buildTimeseries(st: ScannerState, { window = '7d', bucket, model, session, scope = 'all' }: TimeseriesQuery = {}, now = Date.now()): TimeseriesResult | TimeseriesError {
   if (!DEFAULT_BUCKET[window]) window = '7d';
   const bName = BUCKETS[bucket] ? bucket : DEFAULT_BUCKET[window];
   const bucketMs = BUCKETS[bName];
@@ -278,7 +279,7 @@ export function buildTimeseries(st, { window = '7d', bucket, model, session, sco
   const days = window === 'today' ? 0 : window === '7d' ? 6 : window === '30d' ? 29 : -1;
   let lo = days >= 0 ? Math.floor(now / DAY) * DAY - days * DAY : Infinity;
   let hi = days >= 0 ? now : -Infinity;
-  const models = new Set(), agg = new Map();
+  const models = new Set<string>(), agg = new Map<number, Record<string, TsUsage>>();
   for (const s of sessions) {
     for (const [mk, inner] of s.ts) {
       if (days >= 0 && mk < lo) continue;
@@ -297,7 +298,7 @@ export function buildTimeseries(st, { window = '7d', bucket, model, session, sco
       }
     }
   }
-  const points = [];
+  const points: TimeseriesPoint[] = [];
   if (Number.isFinite(lo) && Number.isFinite(hi)) {
     const start = Math.floor(lo / bucketMs) * bucketMs, end = Math.floor(hi / bucketMs) * bucketMs;
     if ((end - start) / bucketMs > 20000) return { error: 'too many buckets' };

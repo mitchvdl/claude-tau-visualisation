@@ -4,9 +4,22 @@
   "description": "Local dashboard for Claude Code token usage, cache, sessions and estimated cost",
   "type": "module",
   "license": "MIT",
-  "repository": { "type": "git", "url": "git+https://github.com/mitchvdl/claude-tau-visualisation.git" },
-  "scripts": { "start": "node src/server.js",
-    "stop": "node src/stop.js",
-    "restart": "node src/stop.js && node src/server.js" },
-  "engines": { "node": ">=22" }
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mitchvdl/claude-tau-visualisation.git"
+  },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning src/server.ts",
+    "stop": "node src/stop.ts",
+    "restart": "node src/stop.ts && node --disable-warning=ExperimentalWarning src/server.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/three": "^0.170.0",
+    "typescript": "^7.0.2"
+  },
+  "engines": {
+    "node": ">=22.18"
+  }
 }

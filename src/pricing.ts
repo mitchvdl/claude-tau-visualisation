@@ -1,7 +1,9 @@
 // ESTIMATE ONLY: USD per 1M tokens at list API prices. If you are on a
 // subscription this is "what it would have cost on the API", not a bill.
 // [prefix, input, output, cacheRead]
-const RAW = [
+import type { Price, TokenDelta } from './types.ts';
+
+const RAW: [string, number, number, number][] = [
   ['claude-fable-5-1', 10, 50, 0.25],
   ['claude-fable-5', 10, 50, 1.0],
   ['claude-opus-5-5', 4, 20, 0.2],
@@ -18,14 +20,14 @@ const RAW = [
   ['claude-haiku-4-5', 1, 5, 0.1],
 ];
 // longest prefix first so claude-opus-5-5 wins over claude-opus-5
-const TABLE = RAW.map(([p, i, o, r]) => ({ p, in: i, out: o, cr: r })).sort((a, b) => b.p.length - a.p.length);
-const cache = new Map();
+const TABLE: Price[] = RAW.map(([p, i, o, r]) => ({ p, in: i, out: o, cr: r })).sort((a, b) => b.p.length - a.p.length);
+const cache = new Map<string, Price | null>();
 
-export function priceFor(model) {
+export function priceFor(model: string | undefined | null): Price | null {
   const key = String(model || '');
   if (cache.has(key)) return cache.get(key);
   const m = key.replace(/-\d{8}$/, '');
-  let found = null;
+  let found: Price | null = null;
   for (const t of TABLE) {
     if (m.startsWith(t.p) && !/\d/.test(m.charAt(t.p.length) || '')) { found = t; break; }
   }
@@ -34,7 +36,7 @@ export function priceFor(model) {
 }
 
 /** tokens: {input, cw5, cw1, cr, out}. Returns {cost, unknown}. */
-export function costOf(model, t) {
+export function costOf(model: string, t: TokenDelta): { cost: number; unknown: boolean } {
   const p = priceFor(model);
   if (!p) return { cost: 0, unknown: true };
   const cost = (t.input * p.in + t.out * p.out + t.cr * p.cr + t.cw5 * p.in * 1.25 + t.cw1 * p.in * 2) / 1e6;

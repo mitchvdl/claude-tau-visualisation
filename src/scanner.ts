@@ -3,11 +3,13 @@
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
-import { cfg } from './config.js';
-import { costOf } from './pricing.js';
-import { newAcc, addTo } from './aggregate.js';
+import type { Dirent, Stats } from 'node:fs';
+import { cfg } from './config.ts';
+import { costOf } from './pricing.ts';
+import { newAcc, addTo } from './aggregate.ts';
+import type { Acc, AgentStat, Cursor, FileRef, FileState, LiveRecord, LiveSession, ModelAcc, PendingTool, RawRecord, ScanEvent, ScanMeta, ScannerState, Session } from './types.ts';
 
-function freshState() {
+function freshState(): ScannerState {
   return {
     files: new Map(), seen: new Set(), sessions: new Map(),
     total: newAcc(), models: new Map(), days: new Map(), projects: new Map(),
@@ -20,14 +22,14 @@ function freshState() {
   };
 }
 
-export let state = freshState();
-export const meta = { filesScanned: 0, bytesRead: 0, malformed: 0, lastScan: null, scanMs: 0, claudeHome: cfg.claudeHome, changedFiles: 0, scans: 0 };
-const listeners = new Set();
-export const onChange = (cb) => { listeners.add(cb); return () => listeners.delete(cb); };
+export let state: ScannerState = freshState();
+export const meta: ScanMeta = { filesScanned: 0, bytesRead: 0, malformed: 0, lastScan: null, scanMs: 0, claudeHome: cfg.claudeHome, changedFiles: 0, scans: 0 };
+const listeners = new Set<(ev: ScanEvent) => void>();
+export const onChange = (cb: (ev: ScanEvent) => void): (() => boolean) => { listeners.add(cb); return () => listeners.delete(cb); };
 
-const inc = (o, k) => { k = String(k); o[k] = (o[k] || 0) + 1; };
+const inc = (o: Record<string, number>, k: string) => { k = String(k); o[k] = (o[k] || 0) + 1; };
 
-function getSession(st, id) {
+function getSession(st: ScannerState, id: string): Session {
   let s = st.sessions.get(id);
   if (!s) {
     s = {
@@ -41,7 +43,7 @@ function getSession(st, id) {
   return s;
 }
 
-function getAgent(sess, id) {
+function getAgent(sess: Session, id: string): AgentStat {
   let a = sess.agentStats.get(id);
   if (!a) {
     a = { id, metaType: '', metaDesc: '', metaModel: '', attrType: '', models: new Set(), acc: newAcc(), first: null, last: null, mtime: 0, effort: null };
@@ -50,7 +52,7 @@ function getAgent(sess, id) {
   return a;
 }
 
-function bump(st, sess, model, day, cwd, ts, d) {
+function bump(st: ScannerState, sess: Session, model: string, day: string, cwd: string, ts: string, d: Partial<Acc>): { m: ModelAcc; sm: ModelAcc } {
   addTo(st.total, d);
   let m = st.models.get(model);
   if (!m) { m = { ...newAcc(), unknownPricing: false }; st.models.set(model, m); }
@@ -71,19 +73,19 @@ function bump(st, sess, model, day, cwd, ts, d) {
   return { m, sm };
 }
 
-function clean(t) {
+function clean(t: string): string | null {
   t = t.trim();
   if (t.startsWith('<local-command-')) return null;
   const m = t.match(/<command-name>\s*([^<]*?)\s*<\/command-name>/);
   if (m) { const a = t.match(/<command-args>([^<]*)<\/command-args>/); return (m[1] + ' ' + (a ? a[1].trim() : '')).trim(); }
   return t || null;
 }
-function promptText(o) {
+function promptText(o: RawRecord): string | null {
   if (o.isSidechain || o.isMeta) return null;
   const hasField = (o.origin && o.origin.kind != null) || o.turnOrigin != null || o.promptSource != null;
   if (hasField && !((o.origin && o.origin.kind === 'human') || o.turnOrigin === 'human' || o.promptSource === 'typed')) return null;
   const c = o.message && o.message.content;
-  let raw = null;
+  let raw: string | null = null;
   if (typeof c === 'string') raw = c;
   else if (Array.isArray(c)) {
     for (const b of c) {
@@ -100,10 +102,10 @@ function promptText(o) {
 }
 
 // ---- pending tool_use tracking (waiting-for-user detection) ----
-const cut = (v, n) => { v = typeof v === 'string' ? v.replace(/\s+/g, ' ').trim() : ''; return v.length > n ? v.slice(0, n - 1) + '…' : v; };
-function pendingOf(b, ts) {
+const cut = (v: string | null | undefined, n: number): string => { v = typeof v === 'string' ? v.replace(/\s+/g, ' ').trim() : ''; return v.length > n ? v.slice(0, n - 1) + '…' : v; };
+function pendingOf(b: RawRecord, ts: string | null): PendingTool {
   const inp = b.input && typeof b.input === 'object' ? b.input : {};
-  const rec = { name: String(b.name || ''), ts: ts || null };
+  const rec: PendingTool = { name: String(b.name || ''), ts: ts || null };
   if (rec.name === 'AskUserQuestion') {
     rec.questions = (Array.isArray(inp.questions) ? inp.questions : []).slice(0, 4).map((q) => ({
       header: cut(q && q.header, 60), question: cut(q && q.question, 300), multiSelect: !!(q && q.multiSelect),
@@ -119,7 +121,7 @@ function pendingOf(b, ts) {
   }
   return rec;
 }
-function trackPending(fi, o, humanPrompt) {
+function trackPending(fi: FileState, o: RawRecord, humanPrompt: boolean): void {
   const c = o.message && o.message.content, pend = fi.pending;
   if (o.type === 'assistant') {
     if (Array.isArray(c)) for (const b of c) if (b && b.type === 'tool_use' && b.id) { pend.set(b.id, pendingOf(b, o.timestamp)); if (pend.size > 50) pend.delete(pend.keys().next().value); }
@@ -134,8 +136,8 @@ function trackPending(fi, o, humanPrompt) {
   if (!isResult && (humanPrompt || /^\s*\[Request interrupted/.test(text))) pend.clear();
 }
 
-function handleLine(st, str, fi) {
-  let o;
+function handleLine(st: ScannerState, str: string, fi: FileState): void {
+  let o: RawRecord;
   try { o = JSON.parse(str); } catch { st.malformed++; return; }
   if (!o || typeof o !== 'object') return;
   const t = o.type;
@@ -183,7 +185,7 @@ function handleLine(st, str, fi) {
   }
 }
 
-function handleAssistant(st, o, sess, aid) {
+function handleAssistant(st: ScannerState, o: RawRecord, sess: Session, aid: string | null): void {
   const m = o.message;
   if (!m || typeof m !== 'object') return;
   const model = m.model || 'unknown';
@@ -196,7 +198,7 @@ function handleAssistant(st, o, sess, aid) {
   const isFirst = id ? !st.seen.has(id) : true;
   if (id && isFirst) st.seen.add(id);
   const u = m.usage;
-  const d = { tools };
+  const d: Partial<Acc> = { tools };
   let counted = false;
   if (isFirst && u && typeof u === 'object') {
     const cc = u.cache_creation;
@@ -234,7 +236,7 @@ function handleAssistant(st, o, sess, aid) {
 }
 
 // attribute a bumped delta to the main session or to one subagent (session totals already include both)
-function split(sess, aid, model, d, o) {
+function split(sess: Session, aid: string | null, model: string, d: Partial<Acc>, o: RawRecord): void {
   if (!aid) { addTo(sess.main, d); return; }
   const a = getAgent(sess, aid);
   addTo(a.acc, d);
@@ -243,7 +245,7 @@ function split(sess, aid, model, d, o) {
 }
 
 // minute buckets: minute(epoch ms) -> Map('m|'|'a|' + model -> usage); 'a' = subagent file, 'm' = main file
-function recordTs(sess, ts, model, aid, d, ctx) {
+function recordTs(sess: Session, ts: string, model: string, aid: string | null, d: Partial<Acc>, ctx: number): void {
   const t = Date.parse(ts);
   if (!Number.isFinite(t)) return;
   const mk = Math.floor(t / 60000) * 60000;
@@ -256,7 +258,7 @@ function recordTs(sess, ts, model, aid, d, ctx) {
   sess.calls.push({ t, model, agentId: aid || null, ctx });
 }
 
-async function readAgentMeta(fi) {
+async function readAgentMeta(fi: FileState): Promise<void> {
   fi.metaTries = (fi.metaTries || 0) + 1;
   try {
     const j = JSON.parse(await fsp.readFile(fi.path.replace(/\.jsonl$/, '.meta.json'), 'utf8'));
@@ -264,7 +266,7 @@ async function readAgentMeta(fi) {
   } catch { /* missing or partial: retry a few scans */ }
 }
 
-async function readNew(st, fi, size) {
+async function readNew(st: ScannerState, fi: Cursor, size: number): Promise<void> {
   const start = fi.offset;
   let rem = Buffer.alloc(0), fed = 0, consumed = 0;
   const stream = fs.createReadStream(fi.path, { start, end: size - 1, highWaterMark: 1 << 20 });
@@ -283,14 +285,14 @@ async function readNew(st, fi, size) {
   fi.offset = start + consumed;
 }
 
-async function discover(root) {
-  const files = [], indexes = [];
+async function discover(root: string): Promise<{ files: FileRef[]; indexes: string[] }> {
+  const files: FileRef[] = [], indexes: string[] = [];
   const pdir = path.join(root, 'projects');
-  let projs = [];
+  let projs: Dirent[] = [];
   try { projs = await fsp.readdir(pdir, { withFileTypes: true }); } catch { return { files, indexes }; }
   await Promise.all(projs.filter((p) => p.isDirectory()).map(async (p) => {
     const dir = path.join(pdir, p.name);
-    let ents = [];
+    let ents: Dirent[] = [];
     try { ents = await fsp.readdir(dir, { withFileTypes: true }); } catch { return; }
     for (const e of ents) {
       if (e.isFile() && e.name.endsWith('.jsonl')) files.push({ path: path.join(dir, e.name), sid: e.name.slice(0, -6) });
@@ -308,10 +310,10 @@ async function discover(root) {
   return { files, indexes };
 }
 
-async function statOf(p) { try { return await fsp.stat(p); } catch { return null; } }
+async function statOf(p: string): Promise<Stats | null> { try { return await fsp.stat(p); } catch { return null; } }
 
-function handleHistory(st, str) {
-  let o;
+function handleHistory(st: ScannerState, str: string): void {
+  let o: RawRecord;
   try { o = JSON.parse(str); } catch { st.malformed++; return; }
   if (!o || typeof o.timestamp !== 'number') return;
   const display = typeof o.display === 'string' ? o.display : '';
@@ -325,17 +327,17 @@ function handleHistory(st, str) {
 }
 
 // ---- live status written by Claude Code itself: sessions/<pid>.json (only *.json; the *.key files are never touched) ----
-const liveCache = new Map(); // path -> { mtime, rec }
+const liveCache = new Map<string, { mtime: number; rec: LiveRecord | null }>(); // path -> { mtime, rec }
 let liveSig = '';
-const pidAlive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
-async function readLive(root) {
-  const dir = path.join(root, 'sessions'), out = new Map(), seen = new Set(); let names = [];
+const pidAlive = (pid: number): boolean => { try { process.kill(pid, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === 'EPERM'; } };
+async function readLive(root: string): Promise<Map<string, LiveSession>> {
+  const dir = path.join(root, 'sessions'), out = new Map<string, LiveSession>(), seen = new Set<string>(); let names: string[] = [];
   try { names = (await fsp.readdir(dir)).filter((n) => n.endsWith('.json') && !n.startsWith('.')); } catch { liveCache.clear(); return out; }
   for (const n of names) {
     const p = path.join(dir, n); seen.add(p); const stt = await statOf(p); if (!stt) continue;
     let c = liveCache.get(p);
     if (!c || c.mtime !== stt.mtimeMs) {
-      let rec = null;
+      let rec: LiveRecord | null = null;
       try { // keep only the few fields we need
         const j = JSON.parse(await fsp.readFile(p, 'utf8'));
         if (j && typeof j.sessionId === 'string' && Number.isFinite(j.pid)) rec = { pid: j.pid, sessionId: j.sessionId, cwd: typeof j.cwd === 'string' ? j.cwd : '', kind: j.kind || null, name: typeof j.name === 'string' ? j.name : '', status: typeof j.status === 'string' ? j.status : '', waitingFor: typeof j.waitingFor === 'string' ? j.waitingFor : null, statusSince: Number.isFinite(j.statusUpdatedAt) ? new Date(j.statusUpdatedAt).toISOString() : null };
@@ -350,19 +352,19 @@ async function readLive(root) {
   return out;
 }
 
-let running = null;
-export function scan() {
+let running: Promise<void> | null = null;
+export function scan(): Promise<void> {
   if (!running) running = doScan().finally(() => { running = null; });
   return running;
 }
 
-async function doScan() {
+async function doScan(): Promise<void> {
   const t0 = Date.now();
   const root = cfg.claudeHome;
   let st = state;
   const { files, indexes } = await discover(root);
   const stats = await Promise.all(files.map((f) => statOf(f.path)));
-  const list = [];
+  const list: (FileRef & { st: Stats })[] = [];
   files.forEach((f, i) => { if (stats[i]) list.push({ ...f, st: stats[i] }); });
 
   // reset detection: shrink, inode change, or removed file => rebuild from scratch in a fresh state
@@ -408,7 +410,7 @@ async function doScan() {
     }
     if (hs.size > h.offset) {
       changed++;
-      const fi = { path: hp, offset: h.offset, handler: handleHistory, sids: new Set() };
+      const fi: Cursor = { path: hp, offset: h.offset, handler: handleHistory, sids: new Set() };
       await readNew(target, fi, hs.size);
       h.offset = fi.offset;
     }
@@ -460,10 +462,10 @@ async function doScan() {
   if (changed) for (const cb of listeners) { try { cb({ type: 'update', scannedAt: meta.lastScan, changedFiles: changed }); } catch { /* ignore */ } }
 }
 
-export function start() {
+export function start(): Promise<void> {
   const first = scan();
   timer = setInterval(() => { scan().catch((e) => console.error('[scan] error', e)); }, cfg.refreshMs);
   return first;
 }
-let timer = null;
-export function stop() { if (timer) clearInterval(timer); timer = null; }
+let timer: NodeJS.Timeout | null = null;
+export function stop(): void { if (timer) clearInterval(timer); timer = null; }

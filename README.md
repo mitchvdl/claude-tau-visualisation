@@ -9,7 +9,7 @@ Zero npm dependencies. Everything is read locally and served on loopback only.
 
 ## Install
 
-Requires Node.js 22 or newer.
+Requires Node.js 22.18 or newer. The code is TypeScript; Node strips the types at runtime (server) and on the fly when serving files to the browser, so there is no build step.
 
 ```
 git clone git@github.com:mitchvdl/claude-tau-visualisation.git
@@ -52,6 +52,12 @@ Costs are estimates at list API prices (`src/pricing.js`), i.e. what usage would
 ## macOS: custom loopback address
 
 To bind to 127.0.1.1 instead, add the alias first: `sudo ifconfig lo0 alias 127.0.1.1 up` (not persistent across reboots), then set `HOST=127.0.1.1`.
+
+## Development
+
+- `npm run typecheck` runs `tsc --noEmit` (needs `npm install` for the dev-only type packages).
+- `src/` is the server (`types.ts` holds the shared API shapes), `public/app.ts` the dashboard, `public/tau3d/*.ts` the 3D view split into modules (`shared.ts` holds the mutable view state `S` and the late-bound function registry `H`).
+- Only erasable TypeScript is allowed (no `enum`, `namespace`, parameter properties).
 
 ## License
 

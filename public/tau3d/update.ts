@@ -68,7 +68,7 @@ export function update(dt: number, adt: number) {
   const aspect = G.W / G.H, needH = Math.max(1.8, 2.0 / aspect); G.camD = needH / 2 / FOV_T / S.zoomCur;
   camera.position.set(S.camX, S.camY, G.camD); camera.lookAt(0, 0, 0); camera.updateMatrixWorld();
   G.pxu = G.H / (2 * G.camD * FOV_T); U.uPx.value = (G.H * G.dpr) / (2 * FOV_T);
-  world.rotation.set(-S.camY * 0.5 - 0.02, S.camX * 0.45, Math.sin(S.T * 0.12) * 0.012 * (S.mode === 0 ? 1 : 1.6));
+  world.rotation.set(-S.camY * 0.5 - 0.02, S.camX * 0.45, Math.sin(S.T * 0.12) * 0.012 * (1 + 0.6 * (1 - clamp(mw[0], 0, 1)))); // eased with the mode weight so switching modes never jolts the triangle
   U.uTime.value = S.T;
 }
 
@@ -83,7 +83,7 @@ export function syncScene(now: number) {
   const fk = S.flick * triK; frameG.visible = triK > 0.012;
   const F = pal.frame, Hh = pal.hot, tint = mix(view.tint, pal.core, 0.35);
   U.uFrame.value.fromArray(lin(F)); U.uCore.value.fromArray(lin(pal.core)); U.uHot.value.fromArray(lin(Hh)); U.uDim.value.fromArray(lin(pal.dim)); U.uTint.value.fromArray(lin(view.tint)); U.uAct.value = Math.min(act, 0.42); U.uBgBase.value.fromArray(pal.bgBase); U.uBgVein.value.fromArray(pal.bgVein); U.uGrain.value = pal.grain; finish.uniforms.uLift.value.set(...pal.lift);
-  const dim = S.mode === 0 ? 1 : 0.8;
+  const dim = 1 - 0.2 * (1 - clamp(mw[0], 0, 1));
   setC(mats.tubeOut, neon(F, 2.2 * fk * dim)); setC(mats.tubeIn, neon(F, 1.7 * fk * dim)); setC(mats.white, lin(mix(F, [255, 200, 190], 0.6), 1.7 * fk));
   setC(mats.gaugeBase, lin(F, 0.8 * triK)); setC((mats as MatsWithRune).rune, lin(F, 1.5 * fk)); setC(mats.gaugeLit, lin(mix(F, Hh, 0.5), 3.2 * fk)); setC(mats.spark, lin([255, 225, 215], 1.6 * fk));
   setC(mats.tick, lin(F, 1.0 * fk)); mats.chev.forEach((m, kk) => setC(m, lin(F, (2.2 - kk * 0.5) * fk * (0.7 + 0.3 * Math.sin(S.T * 2 - kk * 0.8)))));

@@ -866,14 +866,14 @@ function syncScene(now) {
     const selv = clamp(r.selK * 0.4 + r.hovK * 0.35, 0, 1);
     const span = Math.min(r.span, TAU);
     u.uColor.value.set(...lin(col, 0.9)); u.uAlpha.value = clamp(r.alpha, 0, 1); u.uInt.value = 0.7 * (0.55 + A * 0.7) + r.selK * 0.9; u.uSel.value = selv;
-    u.uR.value = r.r * (1 + 0.012 * breathR); u.uTh.value = Math.max(0.0045, r.th * (span > TAU - 0.05 ? 1.25 : 1)) * (1 + r.selK * 0.35 + r.waitK * 0.4 + 0.06 * breathR); u.uBlk.value = r.rect ? u.uTh.value * 0.45 : 0; u.uA0.value = r.a0; u.uSpan.value = span; u.uRot.value = r.rot * r.rotW; u.uK.value = span > TAU - 0.05 ? 1 : clamp(span / TAU, 0.22, 1);
+    u.uR.value = r.r * (1 + 0.012 * breathR); u.uTh.value = Math.max(0.0045, r.th * (span > TAU - 0.05 ? (r.rect ? 0.85 : 1.25) : 1)) * (1 + r.selK * 0.35 + r.waitK * 0.4 + 0.06 * breathR); u.uBlk.value = r.rect ? u.uTh.value * 0.45 : 0; u.uA0.value = r.a0; u.uSpan.value = span; u.uRot.value = r.rot * r.rotW; u.uK.value = span > TAU - 0.05 ? 1 : clamp(span / TAU, 0.22, 1);
     // issues: error = hard red + irregular glitch/blink, warn = slow amber-red pulse
     const ek = r.errK || 0, wk = r.warnK || 0;
     if (ek > 0.01) { const burst = hash(Math.floor(T * 0.9), r.seed * 0.01) > 0.62; const slot = Math.floor(T * (burst ? 19 : 2.6)); const h = hash(slot, r.seed * 0.01 + 3); u.uBlink.value = lerp(1, h < (burst ? 0.5 : 0.1) ? 0.1 : 1.35, ek); u.uDrop.value = burst ? 0.62 : 0.14; u.uJit.value = burst && h < 0.35 ? ek : 0; }
     else { u.uBlink.value = 1; u.uJit.value = 0; u.uDrop.value = 0; }
     u.uWait.value = r.waitK; u.uBeacon.value.set(...lin(beac, 1)); if (r.waitK > 0.01) u.uInt.value *= 1 + 0.9 * hb * r.waitK;
     u.uErr.value = ek; u.uWarn.value = wk * (0.35 + 0.65 * (0.5 + 0.5 * Math.sin(T * 1.7 + i)));
-    const o = r.obj; o.rotation.set(r.tilt[0] * (0.7 + 0.3 * Math.sin(T * 0.13 + r.tilt[2])) * (1 - 0.8 * s1), r.tilt[1] * (0.7 + 0.3 * Math.cos(T * 0.11 + r.tilt[2])) * (1 - 0.8 * s1), 0); o.position.z = s1 * (i * 0.014 - 0.1); o.updateMatrix();
+    const o = r.obj, tk = r.rect ? 0 : 1; o.rotation.set(r.tilt[0] * (0.7 + 0.3 * Math.sin(T * 0.13 + r.tilt[2])) * (1 - 0.8 * s1) * tk, r.tilt[1] * (0.7 + 0.3 * Math.cos(T * 0.11 + r.tilt[2])) * (1 - 0.8 * s1) * tk, 0); // block rings stay flat and concentric o.position.z = r.rect ? 0 : s1 * (i * 0.014 - 0.1); o.updateMatrix();
     o.visible = r.alpha > 0.02;
     if (ghost) return;
     r.col = col; r.A = A;

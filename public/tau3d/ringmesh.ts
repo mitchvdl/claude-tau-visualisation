@@ -27,7 +27,7 @@ void main(){
   vN=normalMatrix*n; vRand=aSeg.z;
   vec4 mv=modelViewMatrix*vec4(pos,1.); vV=-mv.xyz; gl_Position=projectionMatrix*mv;
 }`;
-export const ringFS = `varying vec3 vN, vV; varying float vRand; uniform vec3 uColor,uHot; uniform float uAlpha,uInt,uSel,uBlink,uWarn,uErr,uDrop,uTime,uWait; uniform vec3 uBeacon;
+export const ringFS = `varying vec3 vN, vV; varying float vRand; uniform vec3 uColor,uHot; uniform float uAlpha,uInt,uSel,uBlink,uWarn,uErr,uDrop,uTime,uWait,uLoss; uniform vec3 uBeacon;
 void main(){
   vec3 N=normalize(vN), V=normalize(vV); float ndv=clamp(dot(N,V),0.,1.);
   float cr=pow(ndv,3.), rm=pow(1.-ndv,2.);
@@ -36,7 +36,9 @@ void main(){
   col=mix(col, vec3(1.,.30,.06)*1.25+uHot*cr*.3, uWarn*0.62);
   col=mix(col, vec3(1.,.95,.88)*1.7, uSel*0.78);
   col=mix(col, vec3(1.,.0,.0)*2.0+vec3(1.,.35,.25)*cr*.6, uErr*0.92);
+  col=mix(col, vec3(.55,.75,1.)*(0.55+0.5*cr), uLoss*0.55); // signal loss: cold white-blue
   float vis=1.;
+  if(uLoss>0.01){ float hl=fract(sin(vRand*91.7+floor(uTime*5.)*17.3)*437.5); vis=hl<uLoss*0.4?0.06:1.; } // dashed dropout
   if(uErr>0.01){ float h=fract(sin(vRand*91.7+floor(uTime*13.)*17.3)*437.5); vis=h<uDrop?0.06:1.; }
   gl_FragColor=vec4(col*uInt*uBlink*vis, uAlpha*(0.06+0.94*vis));
 }`;
@@ -46,7 +48,7 @@ export const arcBlock = (() => { // rectangular cross-section for the expansion-
   for (let s = 0; s < CS_DIV; s++) for (let k = 0; k < 4; k++) { const a = s * 4 + k, b = s * 4 + (k + 1) % 4, c = a + 4, d = b + 4; idx.push(a, c, b, b, c, d); }
   return { pos: new Float32Array(pos), nrm: new Float32Array(nrm), idx };
 })();
-export function ringUniforms() { return { ...U, uR: { value: 0.2 }, uTh: { value: 0.01 }, uA0: { value: 0 }, uSpan: { value: TAU }, uRot: { value: 0 }, uK: { value: 1 }, uJit: { value: 0 }, uTaper: { value: 1 }, uBlk: { value: 0 }, uWait: { value: 0 }, uBeacon: { value: new THREE.Vector3(0.4, 0.8, 1) }, uColor: { value: new THREE.Vector3(1, 0.5, 0.1) }, uHot: U.uHot, uAlpha: { value: 1 }, uInt: { value: 1.6 }, uSel: { value: 0 }, uBlink: { value: 1 }, uWarn: { value: 0 }, uErr: { value: 0 }, uDrop: { value: 0.1 } }; }
+export function ringUniforms() { return { ...U, uR: { value: 0.2 }, uTh: { value: 0.01 }, uA0: { value: 0 }, uSpan: { value: TAU }, uRot: { value: 0 }, uK: { value: 1 }, uJit: { value: 0 }, uTaper: { value: 1 }, uBlk: { value: 0 }, uWait: { value: 0 }, uLoss: { value: 0 }, uBeacon: { value: new THREE.Vector3(0.4, 0.8, 1) }, uColor: { value: new THREE.Vector3(1, 0.5, 0.1) }, uHot: U.uHot, uAlpha: { value: 1 }, uInt: { value: 1.6 }, uSel: { value: 0 }, uBlink: { value: 1 }, uWarn: { value: 0 }, uErr: { value: 0 }, uDrop: { value: 0.1 } }; }
 export function buildRingObj(r: RingRec) {
   if (r.obj) { ringsG.remove(r.obj); r.obj.geometry.dispose(); r.obj.material.dispose(); }
   const B = r.blocky || r.rect ? arcBlock : arcBase; const g = new THREE.InstancedBufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(B.pos, 3)); g.setAttribute('aN', new THREE.BufferAttribute(B.nrm, 2)); g.setIndex(B.idx);

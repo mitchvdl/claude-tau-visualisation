@@ -9,7 +9,7 @@ export function saveSettings(): void { try { localStorage.setItem(KEY, JSON.stri
 
 // Tunable look & feel, edited in the settings panel (settings.ts) and saved with the other settings.
 export const CFG_DEFAULTS = {
-  breath: 1, motion: 1, camDrift: 1, bloom: 1, fps: 60, spectrumPeriod: 120, rectFrom: 0.3, blockW: 0.45,
+  breath: 1, signalLoss: 1, motion: 1, camDrift: 1, bloom: 1, fps: 60, spectrumPeriod: 120, rectFrom: 0.3, blockW: 0.45,
   agentBox: true, agentOut: true, agentOpacity: 0.6, agentSpeed: 1,
 };
 export type CfgKey = keyof typeof CFG_DEFAULTS;
@@ -23,6 +23,7 @@ export const S = {
   detailOpen: false, helpOpen: false, zoom: 1, zoomCur: 1, clockTipStr: '', curAdt: 0,
   T: 0, lastActivity: performance.now(), clockHover: false, rings: [] as any[], // TODO(types): Ring
   camX: 0, camY: 0, flick: 1, hb: 0, lastAnnounce: 0, hue: specStart,
+  sig: 0, standby: 0, flash: 0, freeze: 0, Td: 0, stutterUntil: 0, // signal-loss state (see signal.ts): effect level, standby dim, reconnect flash, data-freeze level, frozen data clock
 };
 
 // Late-bound function registry: modules register functions that earlier modules need to call (avoids circular imports).

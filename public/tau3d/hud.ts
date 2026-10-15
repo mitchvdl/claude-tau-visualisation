@@ -16,6 +16,7 @@ export function updateHud() {
   hudEls.tok.textContent = fmtTok(t.total); hudEls.cost.textContent = fmtCost(t.cost); hudEls.cache.textContent = ((t.cacheHit || 0) * 100).toFixed(1) + '%';
   hudEls.ag.textContent = String(s.activeAgents || 0); hudEls.ses.textContent = String(t.sessions || 0); hudEls.home.textContent = (s.config && s.config.claudeHome || '-').replace(/^\/Users\/[^/]+/, '~');
   hudEls.scan.textContent = new Date(data.lastOk || Date.now()).toLocaleTimeString([], { hour12: false });
+  for (const el of [hudEls.tok, hudEls.cost, hudEls.cache, hudEls.ag, hudEls.ses, hudEls.scan]) { el.dataset.real = el.textContent || ''; delete el.dataset.scr; } // true values, restored after a signal-loss scramble
 }
 export function setLink(err?: boolean) { hudEls.link.textContent = data.lost ? 'SIGNAL LOST' : err ? 'RECONNECTING' : 'LIVE'; $('voice').classList.toggle('lost', data.lost); }
 export function renderLegend() {

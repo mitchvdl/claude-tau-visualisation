@@ -1,5 +1,5 @@
 import { H, S } from './shared.ts';
-import { params, voice } from './dom.ts';
+import { demoLost, params, voice } from './dom.ts';
 import type { HistEntry, SessionSummary, SummaryResponse, TimeseriesResult } from '../../src/types.ts';
 import type { SessDelta } from './state.ts';
 
@@ -8,11 +8,12 @@ import type { SessDelta } from './state.ts';
 export interface Series { n: number; t0: number; bucketMs: number; models: string[]; vals: Float32Array[]; cost: Float32Array[]; calls: Float32Array; total: Float32Array; max: number }
 // one stripe on the 12h dial: k = hours ago
 export interface ClockStripe { pos: number; hour: number; calls: number; cost: number; k: number }
-export interface Data { summary: SummaryResponse | null; sessions: SessionSummary[]; series: Series | null; series7: Series | null; history: HistEntry[]; lastOk: number; lost: boolean; sessDiff?: SessDelta[] }
+export interface Data { summary: SummaryResponse | null; sessions: SessionSummary[]; series: Series | null; series7: Series | null; history: HistEntry[]; lastOk: number; lost: boolean; lostSince: number; sessDiff?: SessDelta[] }
 
 export const demo = params.get('demo') === 'issues', demo2 = params.get('demo') === 'waiting';
 export const api = { async get<T>(url: string): Promise<T> { const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) throw new Error(url + ' ' + r.status); return r.json(); } };
-export const data: Data = { summary: null, sessions: [], series: null, series7: null, history: [], lastOk: 0, lost: false };
+export const data: Data = { summary: null, sessions: [], series: null, series7: null, history: [], lastOk: 0, lost: false, lostSince: 0 };
+if (demoLost) { data.lost = true; data.lostSince = Date.now() - (parseFloat(params.get('lostfor') ?? '') || 20) * 1000; }
 
 export function buildSeries(ts: TimeseriesResult): Series | null {
   if (!ts || !ts.points) return null;
@@ -40,11 +41,11 @@ export async function refresh(reason: string): Promise<void> {
   if (res[2].status === 'fulfilled') { data.series = buildSeries(res[2].value); ok++; }
   if (res[3].status === 'fulfilled') { data.history = res[3].value || []; H.feedHistory(); }
   if (res[4] && res[4].status === 'fulfilled') data.series7 = buildSeries(res[4].value);
-  if (ok === 0) { if (!data.lost) { data.lost = true; H.say('Signal lost. Searching...'); } H.setLink(); return; }
-  const wasLost = data.lost; data.lost = false; data.lastOk = Date.now();
+  if (ok === 0) { if (!data.lost) { data.lost = true; data.lostSince = Date.now(); H.say('Signal lost. Searching...'); } H.setLink(); return; }
+  const wasLost = data.lost && !demoLost; data.lost = demoLost; data.lastOk = Date.now();
   H.deriveTargets(); H.updateHud(); H.setLink(); H.renderLegend(); H.issuesChanged(true); H.syncWaitData();
   for (const as of (data.summary.activeSessions || [])) if (as && as.id && as.last) H.queueDetail(as);
-  if (wasLost) H.say('Signal restored.');
+  if (wasLost) { H.say('Signal restored.'); S.flash = 1; }
   else if (reason === 'update') H.announceChange(prev, data.summary);
   if (reason === 'update' || reason === 'poll') H.receiveFromDelta(prev, data.summary);
   else if (!voice.started) { voice.started = true; H.rotateVoice(true); }
@@ -52,9 +53,10 @@ export async function refresh(reason: string): Promise<void> {
 }
 
 export let debounceT: ReturnType<typeof setTimeout> | number = 0;
+let probing = false;
 export function connectEvents(): void {
   let es: EventSource; try { es = new EventSource('/api/events'); } catch (e) { return; }
   es.onmessage = (ev) => { let m: { type?: string }; try { m = JSON.parse(ev.data); } catch (e) { return; } if (m.type === 'update') { H.feedSys('sse update'); H.shock(); clearTimeout(debounceT); debounceT = setTimeout(() => refresh('update'), 1000); } };
-  es.onerror = () => H.setLink(true);
+  es.onerror = () => { H.setLink(true); if (!probing) { probing = true; setTimeout(() => { probing = false; refresh('poll'); }, 1500); } }; // probe soon so a dead server shows as lost within seconds
   es.onopen = () => H.setLink();
 }

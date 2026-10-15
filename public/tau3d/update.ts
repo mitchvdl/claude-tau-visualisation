@@ -54,7 +54,7 @@ export function update(dt: number, adt: number) {
     r.r += (tr - r.r) * k; r.th += (tth - r.th) * k; r.a0 += (ta0 - r.a0) * k; r.span += (tsp - r.span) * k; r.alpha += (tal - r.alpha) * k; r.rotW += (trw - r.rotW) * k;
     const s = r.s; const rec = Math.exp(-(Date.now() - new Date(s.last).getTime()) / 21600000);
     r.speed = (0.04 + 0.22 * rec + (s.isActive ? 0.18 : 0)) * (1 + 2.2 * exM) * (1 - 0.55 * r.idleK); // idle = calm
-    r.rot += r.dir * r.speed * adt * (1 - r.waitK);
+    r.rot += r.dir * r.speed * adt * (1 - r.waitK) * (1 - 0.95 * S.freeze); // frozen while the link is down
     r.act += ((s.isActive ? 1 : 0) - r.act) * k;
     r.selK += ((i === S.sel ? 1 : 0) - r.selK) * (1 - Math.exp(-dt / 0.12)); r.hovK += ((i === S.hover ? 1 : 0) - r.hovK) * (1 - Math.exp(-dt / 0.1));
     r.idleK += ((r.s.live && r.s.live.status === 'idle' ? 1 : 0) - r.idleK) * k;
@@ -140,7 +140,7 @@ export function syncScene(now: number) {
     const u = r.obj.material.uniforms; const breathR = Math.sin(S.T * 0.9 - i * 0.3); // ring breathing, slight phase lag per ring
     let col = mix(mix(pal.core, Hh, 0.1 * (1 - t)), pal.dim, t * 0.7); col = mix(col, view.tint, 0.18 * (1 - t));
     const pulse = 0.5 + 0.5 * Math.sin(S.T * 3 + i * 0.9); let A = r.alpha * (0.88 - 0.38 * t) * S.flick;
-    A *= (1 + r.act * (0.3 + 0.3 * pulse) + r.hovK * 0.5) * (1 - 0.28 * r.idleK);
+    A *= (1 + r.act * (0.3 + 0.3 * pulse) + r.hovK * 0.5) * (1 - 0.28 * r.idleK) * (1 - 0.3 * S.sig * CFG.signalLoss);
     const selv = clamp(r.selK * 0.4 + r.hovK * 0.35, 0, 1);
     const span = Math.min(r.span, TAU);
     u.uColor.value.set(...lin(col, 0.9)); u.uAlpha.value = clamp(r.alpha, 0, 1); u.uInt.value = 0.7 * (0.55 + A * 0.7) + r.selK * 0.9; u.uSel.value = selv;
@@ -149,7 +149,7 @@ export function syncScene(now: number) {
     const ek = r.errK || 0, wk = r.warnK || 0;
     if (ek > 0.01) { const burst = hash(Math.floor(S.T * 0.9), r.seed * 0.01) > 0.62; const slot = Math.floor(S.T * (burst ? 19 : 2.6)); const h = hash(slot, r.seed * 0.01 + 3); u.uBlink.value = lerp(1, h < (burst ? 0.5 : 0.1) ? 0.1 : 1.35, ek); u.uDrop.value = burst ? 0.62 : 0.14; u.uJit.value = burst && h < 0.35 ? ek : 0; }
     else { u.uBlink.value = 1; u.uJit.value = 0; u.uDrop.value = 0; }
-    u.uWait.value = r.waitK; u.uBeacon.value.set(...lin(beac, 1)); if (r.waitK > 0.01) u.uInt.value *= 1 + 0.9 * S.hb * r.waitK;
+    u.uLoss.value = S.sig * CFG.signalLoss; u.uWait.value = r.waitK; u.uBeacon.value.set(...lin(beac, 1)); if (r.waitK > 0.01) u.uInt.value *= 1 + 0.9 * S.hb * r.waitK;
     u.uErr.value = ek; u.uWarn.value = wk * (0.35 + 0.65 * (0.5 + 0.5 * Math.sin(S.T * 1.7 + i)));
     const o = r.obj, tk = r.rect ? 0 : 1; o.rotation.set(r.tilt[0] * (0.7 + 0.3 * Math.sin(S.T * 0.13 + r.tilt[2])) * (1 - 0.8 * s1) * tk, r.tilt[1] * (0.7 + 0.3 * Math.cos(S.T * 0.11 + r.tilt[2])) * (1 - 0.8 * s1) * tk, 0); // block rings stay flat and concentric o.position.z = r.rect ? 0 : s1 * (i * 0.014 - 0.1); o.updateMatrix();
     o.visible = r.alpha > 0.02;
@@ -158,7 +158,7 @@ export function syncScene(now: number) {
     // sub-agent glow points
     const rr = r.r, nsa = Math.min(r.s.subagents || 0, 8); const sol = lin(mix(col, [255, 248, 235], 0.5), 2.2);
     for (let q = 0; q < nsa && saN < MAXSA; q++) {
-      const ang = S.T * (0.5 + 0.12 * q) * -r.dir + q * 2.4 + r.seed; const on = span > TAU - 0.1 || ((ang - (r.a0 + r.rot * r.rotW)) % TAU + TAU) % TAU < span * 1.0;
+      const ang = S.Td * (0.5 + 0.12 * q) * -r.dir + q * 2.4 + r.seed; const on = span > TAU - 0.1 || ((ang - (r.a0 + r.rot * r.rotW)) % TAU + TAU) % TAU < span * 1.0;
       if (!on && S.mode === 1) continue;
       _v.set(Math.cos(ang) * rr, -Math.sin(ang) * rr, 0).applyMatrix4(o.matrix); sa[saN * 3] = _v.x; sa[saN * 3 + 1] = _v.y; sa[saN * 3 + 2] = _v.z;
       const aa = Math.min(1, A) * r.alpha; sc[saN * 4] = sol[0]; sc[saN * 4 + 1] = sol[1]; sc[saN * 4 + 2] = sol[2]; sc[saN * 4 + 3] = aa; saN++;

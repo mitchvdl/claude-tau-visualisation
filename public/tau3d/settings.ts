@@ -34,6 +34,7 @@ const ITEMS: Item[] = [
   num('Look', 'Bar width', 'blockW', 0.15, 1, 0.05, f2),
   num('Look', 'Blocks start at', 'rectFrom', 0, 1, 0.05, pct, 'rings from this fraction outward use rectangular bars'),
   { group: 'Motion', label: 'Motion speed', kind: 'range', min: 0, max: 1.5, step: 0.05, fmt: f2, get: () => CFG.motion, set: (v) => { CFG.motion = v; } },
+  { group: 'Motion', label: 'Signal-loss effect', kind: 'range', min: 0, max: 1.5, step: 0.05, fmt: f2, get: () => CFG.signalLoss, set: (v) => { CFG.signalLoss = v; } },
   { group: 'Motion', label: 'Camera drift', kind: 'range', min: 0, max: 2, step: 0.05, fmt: f2, get: () => CFG.camDrift, set: (v) => { CFG.camDrift = v; } },
   { group: 'Motion', label: 'Frame rate', kind: 'select', options: [{ value: '30', label: '30 fps' }, { value: '60', label: '60 fps' }],
     get: () => String(CFG.fps), set: (v) => { CFG.fps = Number(v); } },

@@ -59,7 +59,7 @@ export function waitAnchor(e: WaitItem) { // world position the leader line poin
   else if (S.mode === 4) { const sess = (data.sessions || []).find((x) => x.id === e.sid); const mi = sess && sess.models ? mdlNames.indexOf(sess.models[0]) : -1; if (mi >= 0) return core.localToWorld(e.anchor.copy(mdl[mi].mesh.position)); }
   if ((S.mode === 0 || S.mode === 1) && ring && ring.obj) {
     const o = ring.obj, span = Math.min(ring.span, TAU); let ang: number, rr = ring.r;
-    if (w.agentId && (ring.s.subagents || 0) > 0) { const nsa = Math.min(ring.s.subagents, 8); let hsh = 0; for (const ch of w.agentId) hsh = (hsh * 31 + ch.charCodeAt(0)) >>> 0; const q = hsh % nsa; ang = S.T * (0.5 + 0.12 * q) * -ring.dir + q * 2.4 + ring.seed; }
+    if (w.agentId && (ring.s.subagents || 0) > 0) { const nsa = Math.min(ring.s.subagents, 8); let hsh = 0; for (const ch of w.agentId) hsh = (hsh * 31 + ch.charCodeAt(0)) >>> 0; const q = hsh % nsa; ang = S.Td * (0.5 + 0.12 * q) * -ring.dir + q * 2.4 + ring.seed; }
     else ang = span < TAU - 0.05 ? ring.a0 + ring.rot * ring.rotW + span * 0.5 : (side > 0 ? -0.2 : Math.PI + 0.2) + (e.slot % 2 ? 0.25 : -0.1);
     _wv.set(Math.cos(ang) * rr, -Math.sin(ang) * rr, 0).applyMatrix4(o.matrix); return core.localToWorld(e.anchor.copy(_wv));
   }

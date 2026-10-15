@@ -32,6 +32,10 @@ The dashboard header has a **Stats | 3D** switch. Press `G` on the dashboard to 
 
 Mode, palette, HUD, voice and the pulse window are remembered in `localStorage` (`tau3d.settings`); URL params such as `?mode=` and `?pal=` override them. The outer dial is an analog clock: the dot with the comet tail is the seconds (one lap per minute), the short bright stripe inside the dial is the minutes, and the long stripe outside is the hour, gliding through its hour wedge (stripe length = calls in that hour; the other 11 stripes are the previous hours). Hover the dot for hh:mm:ss. The core and rings breathe slowly; the outer rings are built from small rectangular blocks, the inner ones from rounded segments. The 3D view uses three.js 0.170.0 (vendored in `public/vendor/three/`, MIT), no CDN at runtime.
 
+### Signal loss
+
+When the link to the server is lost (it is probed within a couple of seconds of the event stream dropping), the 3D view degrades in stages: a light glitch for the first 3 s; after that horizontal tearing, stronger RGB split, static and flicker, a drained cool colour grade, rings that freeze, dim and drop out in dashed cold-blue segments, an occasional dropped-frame stutter, a `NO SIGNAL · m:ss` banner with corner brackets, scrambled HUD digits and a corrupting voice line; after 15 s the scene dims into a low-power standby (30 fps). The clock keeps running, since it is local time. On reconnect there is a warm flash and "Signal restored.". Intensity is the *Signal-loss effect* slider in the settings panel (0 turns the visuals off; the banner and text stay). `?demo=lost&lostfor=20` previews it.
+
 ### Resuming a session
 
 The session drawer (dashboard) and the detail panel (3D, `Enter`) show the full session id with **Copy ID** and **Copy resume command** buttons. The latter copies `cd '<project dir>' && claude --resume <id>`.

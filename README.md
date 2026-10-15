@@ -24,12 +24,7 @@ To read another Claude home, set `CLAUDE_HOME` in `.env` (e.g. `~/.claude-privat
 
 ## Switching views
 
-| Where | Key | Goes to |
-|-------|-----|---------|
-| Stats dashboard | `G` | Tau 3D |
-| Tau 3D | `G` or `B` | Stats dashboard |
-
-The header link "TAU 3D" does the same as `G`. Press `?` in the 3D view for all controls.
+The dashboard header has a **Stats | 3D** switch. Press `G` on the dashboard to open Tau 3D as a full-screen layer on the same page (the URL becomes `/#3d`, so it can be bookmarked); press `G` or `B` in the 3D view to go back. `/tau3d.html` still works as a standalone page. Closing the layer unloads the 3D scene, so it uses no GPU while you look at the stats.
 
 ## Tau 3D controls
 

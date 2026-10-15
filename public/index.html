@@ -27,7 +27,7 @@
       <div class="brand">
         <h1>CLAUDE <span class="sl">//</span> STATS</h1>
         <div class="sub" id="home">&nbsp;</div>
-        <a class="taulink" href="/tau3d.html" title="Open the 3D TAU view (G)">TAU 3D ▽ (G)</a>
+        <div class="seg viewseg" id="viewSwitch" role="group" aria-label="View"><button data-v="stats" aria-pressed="true">Stats</button><button data-v="3d" aria-pressed="false" title="Tau 3D view (G)">3D ▽ (G)</button></div>
       </div>
       <div class="cfg" id="cfg"></div>
       <div class="live">
@@ -194,6 +194,7 @@
     <div id="drawerBody"></div>
   </aside>
 
+  <div id="view3d" hidden><iframe id="f3d" title="Tau 3D" allow="fullscreen"></iframe></div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <script type="module" src="app.ts"></script>
 </body>

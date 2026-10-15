@@ -207,5 +207,10 @@ button.chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2p
 @media (min-width: 721px) and (max-width: 1000px) { .top { grid-template-columns: minmax(max-content, 1fr) auto; } }
 
 /* link to the alternate TAU view */
+.viewseg { margin-top: 6px; width: max-content; }
+#view3d { position: fixed; inset: 0; z-index: 1000; background: #020103; }
+#view3d[hidden] { display: none; }
+#f3d { width: 100%; height: 100%; border: 0; display: block; }
+body.in3d { overflow: hidden; }
 .taulink { display: inline-block; margin-top: 2px; font: 10px/1.2 var(--mono); letter-spacing: .18em; color: var(--muted); text-decoration: none; opacity: .65; }
 .taulink:hover { color: #ff5a40; opacity: 1; text-shadow: 0 0 8px rgba(255, 60, 40, .6); }

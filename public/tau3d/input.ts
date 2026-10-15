@@ -40,7 +40,7 @@ addEventListener('keydown', (e) => {
   else if (k === 'f' || k === 'F') { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen && document.documentElement.requestFullscreen(); }
   else if (k === 'r' || k === 'R') { shock(); refresh('manual'); }
   else if (k === 'w' || k === 'W') { if (S.mode === 3) { S.pulse7 = !S.pulse7; refresh('manual'); renderLegend(); } }
-  else if (k === 'b' || k === 'B' || k === 'g' || k === 'G') location.href = '/';
+  else if (k === 'b' || k === 'B' || k === 'g' || k === 'G') { if (window.parent !== window) window.parent.postMessage({ type: 'tau3d:close' }, location.origin); else location.href = '/'; }
   
   else if (k === '?' || k === '/') (toggleHelp as () => void)();
 });

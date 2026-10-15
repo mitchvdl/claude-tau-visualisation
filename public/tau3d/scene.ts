@@ -6,7 +6,7 @@ import { $ } from './dom.ts';
 export const cv = $('cv') as HTMLCanvasElement;
 export let renderer: THREE.WebGLRenderer;
 try { renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: false, powerPreference: 'high-performance', alpha: false }); } catch (e) {
-  const d = document.createElement('div'); d.id = 'nogl'; d.innerHTML = 'WEBGL UNAVAILABLE &nbsp;·&nbsp; <a class="back" href="/">BACK TO STATS</a>'; document.body.append(d); throw e;
+  const d = document.createElement('div'); d.id = 'nogl'; d.innerHTML = 'WEBGL UNAVAILABLE &nbsp;·&nbsp; <a class="back" href="/" target="_top">BACK TO STATS</a>'; document.body.append(d); throw e;
 }
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
 renderer.setClearColor(0x020103, 1);

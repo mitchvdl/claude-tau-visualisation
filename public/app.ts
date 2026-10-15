@@ -965,8 +965,20 @@ function init() {
   $('backdrop').addEventListener('click', closeDrawer);
   addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeDrawer();
-    else if ((e.key === 'g' || e.key === 'G') && !e.metaKey && !e.ctrlKey && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test((e.target as HTMLElement).tagName)) location.href = '/tau3d.html';
+    else if ((e.key === 'g' || e.key === 'G') && !e.metaKey && !e.ctrlKey && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test((e.target as HTMLElement).tagName)) setView3d(true);
   });
+  // Tau 3D runs in a full-screen iframe on this page (no navigation); the frame is emptied on close so the GPU is freed.
+  const markView = (on: boolean) => document.querySelectorAll('#viewSwitch button').forEach((b) => b.setAttribute('aria-pressed', String((b as HTMLElement).dataset.v === '3d' ? on : !on)));
+  const setView3d = (on: boolean) => {
+    const box = $('view3d'), fr = $('f3d') as HTMLIFrameElement;
+    if (on === !box.hidden) return;
+    box.hidden = !on; document.body.classList.toggle('in3d', on); markView(on);
+    if (on) { fr.src = '/tau3d.html'; fr.addEventListener('load', () => fr.contentWindow?.focus(), { once: true }); history.replaceState(null, '', '#3d'); }
+    else { fr.src = 'about:blank'; history.replaceState(null, '', location.pathname + location.search); window.focus(); }
+  };
+  addEventListener('message', (e) => { if (e.origin === location.origin && e.data && e.data.type === 'tau3d:close') setView3d(false); });
+  document.querySelectorAll('#viewSwitch button').forEach((b) => b.addEventListener('click', () => setView3d((b as HTMLElement).dataset.v === '3d')));
+  if (location.hash === '#3d') setView3d(true);
   const rethemed = () => setTimeout(() => { render(); if (S.openId) loadDrawer(false); }, 50);
   matchMedia('(prefers-color-scheme: light)').addEventListener('change', rethemed);
   const curTheme = () => { const t = document.documentElement.getAttribute('data-theme'); return t === 'dark' || t === 'light' ? t : 'auto'; };

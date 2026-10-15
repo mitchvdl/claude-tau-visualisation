@@ -1,13 +1,20 @@
-// @ts-nocheck - TODO(types): remove once this module is typed
 import { H, S } from './shared.ts';
 import { params, voice } from './dom.ts';
+import type { HistEntry, SessionSummary, SummaryResponse, TimeseriesResult } from '../../src/types.ts';
+import type { SessDelta } from './state.ts';
 
 /* ============================================================ data layer */
-export const demo = params.get('demo') === 'issues', demo2 = params.get('demo') === 'waiting';
-export const api = { async get(url) { const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) throw new Error(url + ' ' + r.status); return r.json(); } };
-export const data = { summary: null, sessions: [], series: null, series7: null, history: [], lastOk: 0, lost: false };
+// per-model series on the timeseries grid: vals/cost are [model][bucket]; calls/total are [bucket]
+export interface Series { n: number; t0: number; bucketMs: number; models: string[]; vals: Float32Array[]; cost: Float32Array[]; calls: Float32Array; total: Float32Array; max: number }
+// one stripe on the 12h dial: k = hours ago
+export interface ClockStripe { pos: number; hour: number; calls: number; cost: number; k: number }
+export interface Data { summary: SummaryResponse | null; sessions: SessionSummary[]; series: Series | null; series7: Series | null; history: HistEntry[]; lastOk: number; lost: boolean; sessDiff?: SessDelta[] }
 
-export function buildSeries(ts) {
+export const demo = params.get('demo') === 'issues', demo2 = params.get('demo') === 'waiting';
+export const api = { async get<T>(url: string): Promise<T> { const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) throw new Error(url + ' ' + r.status); return r.json(); } };
+export const data: Data = { summary: null, sessions: [], series: null, series7: null, history: [], lastOk: 0, lost: false };
+
+export function buildSeries(ts: TimeseriesResult): Series | null {
   if (!ts || !ts.points) return null;
   const n = ts.points.length, models = ts.models || []; const vals = models.map(() => new Float32Array(n)); const cost = models.map(() => new Float32Array(n));
   const calls = new Float32Array(n); const total = new Float32Array(n);
@@ -17,15 +24,15 @@ export function buildSeries(ts) {
 }
 
 // last 12 local hours as stripes on a 12h dial: [{pos, hour, calls, cost, k}] (k = hours ago)
-export function clockHours() {
-  const sr = data.series7, out = []; const t0h = new Date(); t0h.setMinutes(0, 0, 0); const cur = t0h.getTime();
+export function clockHours(): ClockStripe[] {
+  const sr = data.series7, out: ClockStripe[] = []; const t0h = new Date(); t0h.setMinutes(0, 0, 0); const cur = t0h.getTime();
   for (let k = 0; k < 12; k++) { const t = cur - k * 3600e3, hour = new Date(t).getHours(); let calls = 0, cost = 0;
     if (sr && sr.bucketMs === 3600e3) { const i = Math.round((t - sr.t0) / sr.bucketMs); if (i >= 0 && i < sr.n) { calls = sr.calls[i]; for (let m = 0; m < sr.models.length; m++) cost += sr.cost[m][i]; } }
     out.push({ pos: hour % 12, hour, calls, cost, k }); }
   return out;
 }
-export async function refresh(reason) {
-  const jobs = [api.get('/api/summary'), api.get('/api/sessions?limit=16&sort=last'), api.get('/api/timeseries?window=today&bucket=5m&scope=all'), api.get('/api/history?limit=5'), api.get('/api/timeseries?window=7d&bucket=1h&scope=all')];
+export async function refresh(reason: string): Promise<void> {
+  const jobs: [Promise<SummaryResponse>, Promise<SessionSummary[]>, Promise<TimeseriesResult>, Promise<HistEntry[]>, Promise<TimeseriesResult>] = [api.get<SummaryResponse>('/api/summary'), api.get<SessionSummary[]>('/api/sessions?limit=16&sort=last'), api.get<TimeseriesResult>('/api/timeseries?window=today&bucket=5m&scope=all'), api.get<HistEntry[]>('/api/history?limit=5'), api.get<TimeseriesResult>('/api/timeseries?window=7d&bucket=1h&scope=all')];
   const res = await Promise.allSettled(jobs);
   const prev = data.summary; let ok = 0;
   if (res[0].status === 'fulfilled') { data.summary = res[0].value; S.refreshMs = (data.summary.config && data.summary.config.refreshMs) || 5000; ok++; }
@@ -44,10 +51,10 @@ export async function refresh(reason) {
   if (params.get('detail') === '1' && !S.detailOpen) { params.delete('detail'); H.openDetail(); }
 }
 
-export let debounceT = 0;
-export function connectEvents() {
-  let es; try { es = new EventSource('/api/events'); } catch (e) { return; }
-  es.onmessage = (ev) => { let m; try { m = JSON.parse(ev.data); } catch (e) { return; } if (m.type === 'update') { H.feedSys('sse update'); H.shock(); clearTimeout(debounceT); debounceT = setTimeout(() => refresh('update'), 1000); } };
+export let debounceT: ReturnType<typeof setTimeout> | number = 0;
+export function connectEvents(): void {
+  let es: EventSource; try { es = new EventSource('/api/events'); } catch (e) { return; }
+  es.onmessage = (ev) => { let m: { type?: string }; try { m = JSON.parse(ev.data); } catch (e) { return; } if (m.type === 'update') { H.feedSys('sse update'); H.shock(); clearTimeout(debounceT); debounceT = setTimeout(() => refresh('update'), 1000); } };
   es.onerror = () => H.setLink(true);
   es.onopen = () => H.setLink();
 }

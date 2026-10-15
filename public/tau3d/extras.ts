@@ -1,4 +1,3 @@
-// @ts-nocheck - TODO(types): remove once this module is typed
 import * as THREE from 'three';
 import { H, S } from './shared.ts';
 import { TAU, clamp, ease, hash, lerp, lin, mix } from './util.ts';
@@ -9,9 +8,27 @@ import { mulberry32, recv, sessAnchor } from './state.ts';
 import { U, VA, core, frameG, hdr, mats, world } from './scene.ts';
 import { spriteMat } from './core.ts';
 import { buildRingObj } from './ringmesh.ts';
+import type { RingMesh, RingRec } from './ringmesh.ts';
+import type { Mats } from './scene.ts';
+import type { BurstCtx } from './state.ts';
+
+// the rune line material is added to mats here (not in the scene.ts literal)
+export type MatsWithRune = Mats & { rune: THREE.LineBasicMaterial };
+// anything setRingU can drive: a dash ring with its own mesh, segment count and tilt
+export interface RingHost { nSeg: number; obj: RingMesh | null; objN: number; tilt: number[] }
+// idle corner arc (one per vertex and radius step)
+export interface CornerArc extends RingHost { seed: number; a0: number; span: number; r: number; j: number; v: number }
+// expansion ring (7 per burst); segArr holds (start, length, seed) triples in XCAP slots
+export interface XRing extends RingHost { blocky: boolean; cap: number; n: number; segArr: Float32Array; on: boolean; dir: number; speed: number; rot: number; i: number; span: number; rOff: number; thK: number; colT: number }
+// one per-model spike/line pair in the PULSE group
+export interface PulseItem { spk: THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicMaterial>; ln: THREE.Line<THREE.BufferGeometry, THREE.LineBasicMaterial>; kk: number }
+export interface PulseState {
+  key: unknown; items: PulseItem[]; guides: THREE.Group; needle: null; circ?: (r: number) => THREE.LineLoop<THREE.BufferGeometry, THREE.LineBasicMaterial>; guideBuilt?: boolean;
+  c?: { l: THREE.LineLoop<THREE.BufferGeometry, THREE.LineBasicMaterial>; q: number }[];
+}
 
 /* ----- idle ornaments: rune glyphs + corner ring arcs; receiving: expansion rings, red marker, plexus web ----- */
-mats.rune = new THREE.LineBasicMaterial({ color: 0xffffff, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false });
+(mats as MatsWithRune).rune = new THREE.LineBasicMaterial({ color: 0xffffff, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false });
 {
   const pts = []; const stroke = (a, b) => pts.push(a, b);
   for (let v = 0; v < 3; v++) {
@@ -24,17 +41,17 @@ mats.rune = new THREE.LineBasicMaterial({ color: 0xffffff, blending: THREE.Addit
       if (q === 0) { stroke(P(-1, 4), P(1, 4)); }
     });
   }
-  frameG.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), mats.rune));
+  frameG.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), (mats as MatsWithRune).rune));
 }
-export const cornerArcs = []; // idle band: curved dash arcs hugging each corner
+export const cornerArcs: CornerArc[] = []; // idle band: curved dash arcs hugging each corner
 for (let v = 0; v < 3; v++) for (let j = 0; j < 3; j++) {
   const r = 0.50 + j * 0.055; let half = 0.02; for (let th = 0.02; th < 0.7; th += 0.01) { if (r * Math.sin(th) <= (1 - r * Math.cos(th)) * 0.577 * 0.78) half = th; else break; }
   cornerArcs.push({ nSeg: 5 + j * 3, seed: 400 + v * 10 + j, obj: null, objN: 0, tilt: [0, 0, 0], a0: VA[v] - half, span: half * 2, r, j, v });
 }
 export const XCAP = 96;
-export const xr = Array.from({ length: 7 }, (_, i) => ({ blocky: true, cap: XCAP, nSeg: XCAP, n: 0, segArr: new Float32Array(XCAP * 3), obj: null, objN: 0, on: true, dir: i % 2 ? -1 : 1, speed: 0.15, rot: hash(i, 77) * TAU, i, span: TAU, rOff: 0, thK: 1, colT: 0.3, tilt: [0, 0, 0] }));
+export const xr: XRing[] = Array.from({ length: 7 }, (_, i) => ({ blocky: true, cap: XCAP, nSeg: XCAP, n: 0, segArr: new Float32Array(XCAP * 3), obj: null, objN: 0, on: true, dir: i % 2 ? -1 : 1, speed: 0.15, rot: hash(i, 77) * TAU, i, span: TAU, rOff: 0, thK: 1, colT: 0.3, tilt: [0, 0, 0] }));
 // per burst: which rings appear, speeds/directions, dash length distribution (long bars vs short ticks), partial arcs, tilt
-export function genXr(rng) {
+export function genXr(rng: () => number) {
   let cnt = 0; xr.forEach((x, i) => {
     x.on = rng() < 0.82; if (x.on) cnt++; x.dir = rng() < 0.5 ? -1 : 1; x.speed = (0.06 + rng() * 0.34) * (0.8 + 0.5 * recv.amp); x.span = rng() < 0.3 ? TAU * (0.5 + 0.45 * rng()) : TAU; x.rOff = (rng() - 0.5) * 0.03; x.thK = 0.7 + rng() * 0.9; x.colT = rng();
     x.tilt[0] = (rng() - 0.5) * 0.34; x.tilt[1] = (rng() - 0.5) * 0.34; x.rot = rng() * TAU;
@@ -58,7 +75,7 @@ export const webHome = new Float32Array(WN * 3), webPh = new Float32Array(WN), w
 export const PATTERNS = ['shock', 'sweep', 'tendril', 'cluster'];
 export const _best = new Float32Array(WN), _bpar = new Int16Array(WN), _in = new Uint8Array(WN), _dep = new Uint8Array(WN), _cl = new Int8Array(WN), _jit = new Float32Array(WN);
 // regenerate the whole web layout, ignition order, settle style and expansion rings for one burst (no per-frame work, no new buffers)
-export function genBurst(ctx) {
+export function genBurst(ctx: BurstCtx) {
   const sp = params.get('seed'), seed = sp != null && sp !== '' ? (+sp >>> 0) : (((Math.random() * 4294967296) >>> 0) ^ (Date.now() >>> 0)); recv.seed = seed; const rng = mulberry32(seed);
   const gauss = () => Math.sqrt(-2 * Math.log(rng() + 1e-6)) * Math.cos(TAU * rng());
   const tool = ctx.toolRatio != null ? ctx.toolRatio : 0.9 + rng() * 0.9, outpc = ctx.outPerCall != null ? ctx.outPerCall : rng() * 3000;
@@ -116,8 +133,8 @@ export const SPN = 40, spA = new Int16Array(SPN), spB = new Int16Array(SPN), spT
 export const sPG = new THREE.BufferGeometry(); sPG.setAttribute('position', new THREE.BufferAttribute(new Float32Array(SPN * 3), 3)); sPG.setAttribute('aC', new THREE.BufferAttribute(new Float32Array(SPN * 4), 4)); sPG.setAttribute('aS', new THREE.BufferAttribute(new Float32Array(SPN * 2).fill(1.3), 2));
 export const sparkPts = new THREE.Points(sPG, webPts.material); sparkPts.frustumCulled = false; sparkPts.renderOrder = 8; webG.add(sparkPts);
 
-export function putLine(la, n, pa, i, j) { const o = n * 6; la[o] = pa[i * 3]; la[o + 1] = pa[i * 3 + 1]; la[o + 2] = pa[i * 3 + 2]; la[o + 3] = pa[j * 3]; la[o + 4] = pa[j * 3 + 1]; la[o + 5] = pa[j * 3 + 2]; }
-export function syncWeb(wg) {
+export function putLine(la: { [i: number]: number }, n: number, pa: ArrayLike<number>, i: number, j: number) { const o = n * 6; la[o] = pa[i * 3]; la[o + 1] = pa[i * 3 + 1]; la[o + 2] = pa[i * 3 + 2]; la[o + 3] = pa[j * 3]; la[o + 4] = pa[j * 3 + 1]; la[o + 5] = pa[j * 3 + 2]; }
+export function syncWeb(wg: number) {
   webG.visible = wg > 0.003; if (!webG.visible) return;
   const pa = wPG.attributes.position.array, ca = wPG.attributes.aC.array, sa = wPG.attributes.aS.array, la = wLG.attributes.position.array, lc = wLG.attributes.color.array;
   const wc = lin(mix(pal.core, pal.hot, 0.35), 1); webCol[0] = wc[0]; webCol[1] = wc[1]; webCol[2] = wc[2];
@@ -161,12 +178,12 @@ export function syncWeb(wg) {
   sPG.attributes.position.needsUpdate = sPG.attributes.aC.needsUpdate = true;
   wLG.setDrawRange(0, nl * 2); wLG.attributes.position.needsUpdate = wLG.attributes.color.needsUpdate = true; wPG.attributes.position.needsUpdate = wPG.attributes.aC.needsUpdate = wPG.attributes.aS.needsUpdate = true;
 }
-export function setRingU(x, r, th, a0, span, rot, col, int, alpha, tiltK) {
-  if (!x.obj || x.objN !== x.nSeg) buildRingObj(x); const u = x.obj.material.uniforms;
+export function setRingU(x: RingHost, r: number, th: number, a0: number, span: number, rot: number, col: number[], int: number, alpha: number, tiltK: number) {
+  if (!x.obj || x.objN !== x.nSeg) buildRingObj(x as unknown as RingRec); const u = x.obj.material.uniforms;
   u.uColor.value.set(col[0], col[1], col[2]); u.uInt.value = int; u.uAlpha.value = alpha; u.uR.value = r; u.uTh.value = th; u.uA0.value = a0; u.uSpan.value = span; u.uRot.value = rot; u.uK.value = span > TAU - 0.05 ? 1 : clamp(span / TAU, 0.22, 1);
   u.uSel.value = 0; u.uBlink.value = 1; u.uErr.value = 0; u.uWarn.value = 0; u.uJit.value = 0; x.obj.rotation.set(x.tilt[0] * tiltK, x.tilt[1] * tiltK, 0); x.obj.visible = alpha > 0.01;
 }
-export function syncExtras(ex, triK) {
+export function syncExtras(ex: number, triK: number) {
   const e = ease(clamp(ex, 0, 1)); const chot = pal.hot, cc = pal.core;
   // idle corner arcs (fade with the triangle)
   for (const c of cornerArcs) { const k = triK * (S.mode === 0 || S.mode === 1 ? 1 : 0.5); setRingU(c, c.r, 0.0042, c.a0, c.span, Math.sin(S.T * 0.2 + c.v + c.j) * 0.03, lin(mix(cc, pal.dim, 0.5), 1), 0.75 + 0.12 * Math.sin(S.T * 1.3 + c.j), clamp(k, 0, 1) * 0.9, 1); }
@@ -210,7 +227,7 @@ export const dust = new THREE.Points(pGeo, new THREE.ShaderMaterial({
 dust.frustumCulled = false; dust.renderOrder = 6; world.add(dust);
 
 /* ----- NEURAL group: agent-type nodes ----- */
-export const sphereMat = (col) => new THREE.ShaderMaterial({
+export const sphereMat = (col: [number, number, number]) => new THREE.ShaderMaterial({
   uniforms: { uCol: { value: new THREE.Vector3(...col) }, uCorePos: { value: new THREE.Vector3() }, uA: { value: 1 }, uEm: { value: 0.25 } }, transparent: true,
   vertexShader: `varying vec3 vN, vW; void main(){ vN=mat3(modelMatrix)*normal; vec4 w=modelMatrix*vec4(position,1.); vW=w.xyz; gl_Position=projectionMatrix*viewMatrix*w; }`,
   fragmentShader: `varying vec3 vN, vW; uniform vec3 uCol,uCorePos; uniform float uA,uEm;
@@ -232,7 +249,7 @@ export const nPulse = new THREE.Points(nPulseGeo, new THREE.ShaderMaterial({ uni
 
 /* ----- PULSE group ----- */
 export const pulseG = new THREE.Group(); core.add(pulseG);
-export const pulseState = { key: null, items: [], guides: null, needle: null };
+export const pulseState: PulseState = { key: null, items: [], guides: null, needle: null };
 export function addLineMat(opts = {}) { return new THREE.LineBasicMaterial({ color: 0xffffff, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, ...opts }); }
 export const pulseGuideMat = addLineMat();
 { const g = new THREE.Group(); const circ = (r) => { const l = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(Array.from({ length: 120 }, (_, i) => new THREE.Vector3(Math.cos((i / 120) * TAU) * r, Math.sin((i / 120) * TAU) * r, 0))), pulseGuideMat); return l; };

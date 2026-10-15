@@ -1,11 +1,10 @@
-// @ts-nocheck - TODO(types): remove once this module is typed
 import * as THREE from 'three';
 import { lin } from './util.ts';
 import { $ } from './dom.ts';
 
 /* ============================================================ three.js setup */
-export const cv = $('cv');
-export let renderer;
+export const cv = $('cv') as HTMLCanvasElement;
+export let renderer: THREE.WebGLRenderer;
 try { renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: false, powerPreference: 'high-performance', alpha: false }); } catch (e) {
   const d = document.createElement('div'); d.id = 'nogl'; d.innerHTML = 'WEBGL UNAVAILABLE &nbsp;·&nbsp; <a class="back" href="/">BACK TO STATS</a>'; document.body.append(d); throw e;
 }
@@ -62,19 +61,24 @@ void main(){
 export const bg = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), bgMat); bg.position.z = -1.3; bg.renderOrder = -10; bg.frustumCulled = false; scene.add(bg);
 
 /* ----- neon triangle ----- */
-export const VA = [210, 330, 90].map((d) => (d * Math.PI) / 180);
-export const verts3 = (R, z = 0) => VA.map((a) => new THREE.Vector3(Math.cos(a) * R, -Math.sin(a) * R, z));
+export const VA: number[] = [210, 330, 90].map((d) => (d * Math.PI) / 180);
+export const verts3 = (R: number, z = 0): THREE.Vector3[] => VA.map((a) => new THREE.Vector3(Math.cos(a) * R, -Math.sin(a) * R, z));
 export const Y = new THREE.Vector3(0, 1, 0);
 export const _d = new THREE.Vector3();
-export function setSeg(m, A, B) { _d.subVectors(B, A); const L = _d.length(); m.position.addVectors(A, B).multiplyScalar(0.5); m.quaternion.setFromUnitVectors(Y, _d.multiplyScalar(1 / (L || 1))); m.scale.set(1, L, 1); }
+export function setSeg(m: THREE.Object3D, A: THREE.Vector3, B: THREE.Vector3) { _d.subVectors(B, A); const L = _d.length(); m.position.addVectors(A, B).multiplyScalar(0.5); m.quaternion.setFromUnitVectors(Y, _d.multiplyScalar(1 / (L || 1))); m.scale.set(1, L, 1); }
 export const cylG = new THREE.CylinderGeometry(1, 1, 1, 8, 1, true), sphG = new THREE.SphereGeometry(1, 12, 8);
-export const neon = (F, k) => lin([F[0], F[1] * 0.45, F[2] * 0.4], k); // keep reds red through ACES
-export const hdr = (r = 1, o = {}) => new THREE.MeshBasicMaterial({ color: new THREE.Color(r, r, r), toneMapped: true, ...o });
-export const mats = { tubeOut: hdr(), tubeIn: hdr(), white: hdr(), gaugeBase: hdr(), gaugeLit: hdr(), spark: hdr(), tick: new THREE.LineBasicMaterial({ color: 0xffffff, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false }), chev: [0, 1, 2].map(() => new THREE.LineBasicMaterial({ color: 0xffffff, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })), dial: new THREE.LineBasicMaterial({ color: 0xffffff, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false }) };
+export const neon = (F: number[], k?: number) => lin([F[0], F[1] * 0.45, F[2] * 0.4], k); // keep reds red through ACES
+export const hdr = (r = 1, o: THREE.MeshBasicMaterialParameters = {}) => new THREE.MeshBasicMaterial({ color: new THREE.Color(r, r, r), toneMapped: true, ...o });
+export interface Mats {
+  tubeOut: THREE.MeshBasicMaterial; tubeIn: THREE.MeshBasicMaterial; white: THREE.MeshBasicMaterial; gaugeBase: THREE.MeshBasicMaterial; gaugeLit: THREE.MeshBasicMaterial; spark: THREE.MeshBasicMaterial;
+  tick: THREE.LineBasicMaterial; chev: THREE.LineBasicMaterial[]; dial: THREE.LineBasicMaterial; min?: THREE.LineBasicMaterial; // min: set in core.ts
+}
+export const mats: Mats = { tubeOut: hdr(), tubeIn: hdr(), white: hdr(), gaugeBase: hdr(), gaugeLit: hdr(), spark: hdr(), tick: new THREE.LineBasicMaterial({ color: 0xffffff, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false }), chev: [0, 1, 2].map(() => new THREE.LineBasicMaterial({ color: 0xffffff, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })), dial: new THREE.LineBasicMaterial({ color: 0xffffff, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false }) };
 export const frameG = new THREE.Group(); world.add(frameG);
-export const FR = [{ R: 0.995, z: 0.045, rad: 0.0062, mat: mats.tubeOut }, { R: 0.93, z: -0.045, rad: 0.0046, mat: mats.tubeIn }];
-export const frames = FR.map((f) => {
-  const v = verts3(f.R, f.z), g = new THREE.Group(); const segs = [];
+export interface FrameSpec { R: number; z: number; rad: number; mat: THREE.MeshBasicMaterial }
+export const FR: FrameSpec[] = [{ R: 0.995, z: 0.045, rad: 0.0062, mat: mats.tubeOut }, { R: 0.93, z: -0.045, rad: 0.0046, mat: mats.tubeIn }];
+export const frames: { v: THREE.Vector3[]; f: FrameSpec }[] & { chev?: THREE.Line[] } = FR.map((f) => {
+  const v = verts3(f.R, f.z), g = new THREE.Group(); const segs: THREE.Mesh[] = [];
   for (let e = 0; e < 3; e++) {
     const A = v[e], B = v[(e + 1) % 3];
     const m = new THREE.Mesh(cylG, f.mat); setSeg(m, A, B); m.scale.x = m.scale.z = f.rad; g.add(m);

@@ -1,13 +1,16 @@
-// @ts-nocheck - TODO(types): remove once this module is typed
 import * as THREE from 'three';
 import { TAU, hash } from './util.ts';
 import { U } from './scene.ts';
 import { ringsG } from './core.ts';
 
+// per-ring record (owned by the ring/state code, shared with it as plain objects; only the fields touched here are declared)
+export type RingMesh = THREE.Mesh<THREE.InstancedBufferGeometry, THREE.ShaderMaterial>;
+export interface RingRec { seed: number; obj?: RingMesh | null; objRect?: boolean; objN?: number; blocky?: boolean; rect?: boolean; cap?: number; segArr?: Float32Array; n?: number; nSeg?: number }
+
 /* ----- memory rings: instanced arc segments, per-instance start/length/random, built in the vertex shader ----- */
 export const CS_DIV = 8, CS_N = 6;
 export const arcBase = (() => { // position = (t along arc, profile u, profile v); aN = profile normal
-  const pos = [], nrm = [], idx = [];
+  const pos: number[] = [], nrm: number[] = [], idx: number[] = [];
   for (let s = 0; s <= CS_DIV; s++) for (let k = 0; k < CS_N; k++) { const a = (k / CS_N) * TAU, u = Math.cos(a), v = Math.sin(a) * 0.62; pos.push(s / CS_DIV, u, v); const n = new THREE.Vector2(Math.cos(a), Math.sin(a) / 0.62).normalize(); nrm.push(n.x, n.y); }
   for (let s = 0; s < CS_DIV; s++) for (let k = 0; k < CS_N; k++) { const a = s * CS_N + k, b = s * CS_N + (k + 1) % CS_N, c = a + CS_N, d = b + CS_N; idx.push(a, c, b, b, c, d); }
   return { pos: new Float32Array(pos), nrm: new Float32Array(nrm), idx };
@@ -38,19 +41,19 @@ void main(){
   gl_FragColor=vec4(col*uInt*uBlink*vis, uAlpha*(0.06+0.94*vis));
 }`;
 export const arcBlock = (() => { // rectangular cross-section for the expansion-ring blocks
-  const pos = [], nrm = [], idx = [], cs = [[1, 0.4], [-1, 0.4], [-1, -0.4], [1, -0.4]];
+  const pos: number[] = [], nrm: number[] = [], idx: number[] = [], cs = [[1, 0.4], [-1, 0.4], [-1, -0.4], [1, -0.4]];
   for (let s = 0; s <= CS_DIV; s++) cs.forEach(([u, v]) => { pos.push(s / CS_DIV, u, v); nrm.push(u * 0.7, v / 0.4 * 0.7); });
   for (let s = 0; s < CS_DIV; s++) for (let k = 0; k < 4; k++) { const a = s * 4 + k, b = s * 4 + (k + 1) % 4, c = a + 4, d = b + 4; idx.push(a, c, b, b, c, d); }
   return { pos: new Float32Array(pos), nrm: new Float32Array(nrm), idx };
 })();
 export function ringUniforms() { return { ...U, uR: { value: 0.2 }, uTh: { value: 0.01 }, uA0: { value: 0 }, uSpan: { value: TAU }, uRot: { value: 0 }, uK: { value: 1 }, uJit: { value: 0 }, uTaper: { value: 1 }, uBlk: { value: 0 }, uWait: { value: 0 }, uBeacon: { value: new THREE.Vector3(0.4, 0.8, 1) }, uColor: { value: new THREE.Vector3(1, 0.5, 0.1) }, uHot: U.uHot, uAlpha: { value: 1 }, uInt: { value: 1.6 }, uSel: { value: 0 }, uBlink: { value: 1 }, uWarn: { value: 0 }, uErr: { value: 0 }, uDrop: { value: 0.1 } }; }
-export function buildRingObj(r) {
+export function buildRingObj(r: RingRec) {
   if (r.obj) { ringsG.remove(r.obj); r.obj.geometry.dispose(); r.obj.material.dispose(); }
   const B = r.blocky || r.rect ? arcBlock : arcBase; const g = new THREE.InstancedBufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(B.pos, 3)); g.setAttribute('aN', new THREE.BufferAttribute(B.nrm, 2)); g.setIndex(B.idx);
   const n = r.blocky ? r.cap : r.rect ? r.nSeg * 3 : r.nSeg, seg = r.blocky ? r.segArr : new Float32Array(n * 3);
   if (!r.blocky) for (let k = 0; k < n; k++) { const step = 1 / n, len = r.rect ? step : step * (0.42 + 0.46 * hash(r.seed, k)); seg[k * 3] = k * step + (step - len) * 0.5; seg[k * 3 + 1] = len; seg[k * 3 + 2] = hash(r.seed + 7, k); }
   g.setAttribute('aSeg', new THREE.InstancedBufferAttribute(seg, 3)); g.instanceCount = r.blocky ? r.n : n;
-  const m = new THREE.Mesh(g, new THREE.ShaderMaterial({ uniforms: ringUniforms(), vertexShader: ringVS, fragmentShader: ringFS, transparent: true, depthWrite: true, side: THREE.DoubleSide }));
+  const m: RingMesh = new THREE.Mesh(g, new THREE.ShaderMaterial({ uniforms: ringUniforms(), vertexShader: ringVS, fragmentShader: ringFS, transparent: true, depthWrite: true, side: THREE.DoubleSide }));
   if (r.blocky || r.rect) m.material.uniforms.uTaper.value = 0; r.objRect = !!r.rect; m.frustumCulled = false; m.renderOrder = 2; r.obj = m; r.objN = r.blocky ? n : r.nSeg; ringsG.add(m);
 }
-export function killRingObj(r) { if (r.obj) { ringsG.remove(r.obj); r.obj.geometry.dispose(); r.obj.material.dispose(); r.obj = null; } }
+export function killRingObj(r: RingRec) { if (r.obj) { ringsG.remove(r.obj); r.obj.geometry.dispose(); r.obj.material.dispose(); r.obj = null; } }

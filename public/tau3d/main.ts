@@ -1,4 +1,3 @@
-// @ts-nocheck - TODO(types): remove once this module is typed
 import { S } from './shared.ts';
 import { clamp } from './util.ts';
 import { hudEls, params } from './dom.ts';
@@ -35,7 +34,7 @@ import './input.ts';
 
 /* ============================================================ main loop */
 export let last = 0, lastRender = 0, idle = false;
-export function frame(ms) {
+export function frame(ms: number) {
   requestAnimationFrame(frame);
   if (document.hidden) { last = 0; return; }
   idle = (performance.now() - S.lastActivity > 90000 && view.act < 0.08);
@@ -49,7 +48,7 @@ export function frame(ms) {
   composer.render(dt);
 }
 document.addEventListener('visibilitychange', () => { last = 0; });
-setInterval(() => issuesChanged(), 4000);
+setInterval(() => (issuesChanged as () => void)(), 4000);
 
 resize(); hudEls.mode.textContent = `${S.mode + 1} ${MODES[S.mode]}`;
 if (params.has('pal')) { S.palIdx = palIndexOf(params.get('pal')); hudEls.pal.textContent = PALETTES[S.palIdx].name; Object.assign(pal, JSON.parse(JSON.stringify(PALETTES[S.palIdx]))); }
@@ -60,7 +59,7 @@ else if (params.get('demo') === 'receive') setTimeout(() => triggerReceive(1, {}
 if (params.has('zoom')) S.zoom = S.zoomCur = +params.get('zoom') || 1;
 say('Waking...');
 requestAnimationFrame(frame);
-refresh('init').then(() => { syncWaitData(); if (params.get('sel')) S.sel = clamp(+params.get('sel') || 0, 0, Math.max(0, S.rings.length - 1)); updateMemcard(); renderLegend(); issuesChanged(); });
+refresh('init').then(() => { syncWaitData(); if (params.get('sel')) S.sel = clamp(+params.get('sel') || 0, 0, Math.max(0, S.rings.length - 1)); updateMemcard(); renderLegend(); (issuesChanged as () => void)(); });
 if (params.get('nosse') !== '1') connectEvents();
 setInterval(() => { if (!document.hidden) refresh('poll'); }, Math.max(15000, S.refreshMs * 6));
 setInterval(() => { if (S.mode === 1 && S.rings[S.sel]) updateMemcard(); }, 30000);

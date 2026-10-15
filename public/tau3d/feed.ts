@@ -1,42 +1,43 @@
-// @ts-nocheck - TODO(types): remove once this module is typed
 import { H } from './shared.ts';
 import { base, fmtCost, fmtTok, shortModel, trunc } from './util.ts';
 import { feed, hm, hms, params } from './dom.ts';
+import type { FeedLine, FeedRow } from './dom.ts';
 import { data } from './data.ts';
+import type { SessionDetail, SessionSummary } from '../../src/types.ts';
 
 /* ============================================================ terminal feed (live agent log, bottom-left) */
 export const FEED_MAX = 200;
 try { if (params.get('feed') == null && localStorage.getItem('tau3d.feed') === '0') feed.on = false; } catch (e) { /* storage unavailable */ }
-export function feedPush(kind, text, dim, instant) {
+export function feedPush(kind: string, text: string, dim?: string, instant?: boolean) {
   const it = { kind, text: trunc(text, 150), dim: dim ? String(dim) : '', instant: !!instant }; feed.lines.push(it); if (feed.lines.length > FEED_MAX) feed.lines.shift(); feed.q.push(it); feed.lastLine = performance.now();
 }
-export const feedSys = (text) => feedPush('s', `# ${hms(Date.now())} ${text}`);
-export function feedRow(it, full) {
+export const feedSys = (text: string) => feedPush('s', `# ${hms(Date.now())} ${text}`);
+export function feedRow(it: FeedLine, full?: boolean): FeedRow {
   const row = document.createElement('div'); row.className = 'fl k' + it.kind; const m = document.createElement('span'), d = document.createElement('span'); d.className = 'fd'; row.append(m, d); feed.inn.append(row);
   while (feed.inn.children.length > 14) feed.inn.removeChild(feed.inn.firstChild);
   const t = { it, m, d, n: full ? 9999 : 0, len: it.text.length + (it.dim ? it.dim.length + 2 : 0) }; paintRow(t);
   if (!full) { const lh = row.offsetHeight || 14; feed.inn.style.transition = 'none'; feed.inn.style.transform = `translateY(${lh}px)`; void feed.inn.offsetHeight; feed.inn.style.transition = 'transform .25s ease-out'; feed.inn.style.transform = 'translateY(0)'; }
   return t;
 }
-export function paintRow(t) { const L = t.it.text.length; t.m.textContent = t.it.text.slice(0, t.n); t.d.textContent = t.n > L && t.it.dim ? '  ' + t.it.dim.slice(0, Math.max(0, t.n - L - 2)) : ''; }
+export function paintRow(t: FeedRow) { const L = t.it.text.length; t.m.textContent = t.it.text.slice(0, t.n); t.d.textContent = t.n > L && t.it.dim ? '  ' + t.it.dim.slice(0, Math.max(0, t.n - L - 2)) : ''; }
 setInterval(() => {
   if (!feed.on) { feed.q.length = 0; feed.typing = null; return; }
   if (!feed.typing) { const it = feed.q.shift(); if (!it) return; feed.typing = feedRow(it, false); }
   const t = feed.typing; t.n += feed.q.length > 5 || t.it.instant ? 9999 : 5; paintRow(t); if (t.n >= t.len) feed.typing = null;
 }, 30);
-export function feedToggle(on) {
+export function feedToggle(on?: boolean) {
   feed.on = on === undefined ? !feed.on : on; feed.el.hidden = !feed.on; try { localStorage.setItem('tau3d.feed', feed.on ? '1' : '0'); } catch (e) { /* ignore */ }
   if (feed.on) { feed.inn.textContent = ''; feed.q.length = 0; feed.typing = null; feed.lines.slice(-10).forEach((it) => feedRow(it, true)); }
 }
-export const feedEmit = (ts, kind, text, dim) => { if (!feed.flushed) feed.pre.push({ ts, kind, text, dim }); else feedPush(kind, text, dim); };
+export const feedEmit = (ts: number, kind: string, text: string, dim?: string) => { if (!feed.flushed) feed.pre.push({ ts, kind, text, dim }); else feedPush(kind, text, dim); };
 export function feedFlush() { // backfill: last ~15 lines in chronological order
   feed.flushed = true; feed.pre.sort((a, b) => a.ts - b.ts); feed.pre.slice(-15).forEach((x) => feedPush(x.kind, x.text, x.dim, true)); feed.pre.length = 0; feedSys('tau://feed online'); 
 }
 export function feedHistory() {
   for (const h of (data.history || []).slice().reverse()) { const key = 'p:' + trunc(h.display, 60); if (feed.seen.has(key)) continue; feed.seen.add(key); feedEmit(h.ts || Date.now(), 'u', `> ${hm(h.ts || Date.now())} [${base(h.project)}] ${trunc(h.display, 90)}`); }
 }
-export const feedActive = (s) => !!(s.isActive || feed.calls.has(s.id) && feed.ag.size && [...feed.ag.keys()].some((k) => k.startsWith(s.id + ':')));
-export function feedIngest(s, d) { // new lines from a session detail (active sessions only), diffed against what we saw before
+export const feedActive = (s: SessionSummary) => !!(s.isActive || feed.calls.has(s.id) && feed.ag.size && [...feed.ag.keys()].some((k) => k.startsWith(s.id + ':')));
+export function feedIngest(s: SessionSummary, d: SessionDetail) { // new lines from a session detail (active sessions only), diffed against what we saw before
   const now = Date.now(), proj = base(s.cwd); const agName = new Map(); for (const a of d.agents || []) agName.set(a.id, a.type || 'agent');
   for (const a of d.agents || []) {
     const key = s.id + ':' + a.id, prev = feed.ag.get(key), tok = a.tokens ? a.tokens.total || 0 : 0, model = shortModel((a.models || [])[0]), ty = a.type || 'agent', desc = trunc(a.description, 70), meta = `${ty} · ${fmtCost(a.cost)} · ${fmtTok(tok)}`, ts = Date.parse(a.last) || now;

@@ -1,4 +1,3 @@
-// @ts-nocheck - TODO(types): remove once this module is typed
 import * as THREE from 'three';
 import { H, S } from './shared.ts';
 import { TAU, clamp, ease, fmtCost, fmtTok, hash, lerp, lin, mix, shortModel } from './util.ts';
@@ -11,13 +10,18 @@ import { TRAIL, clockCore, clockDot, clockState, clockStripes, dialLine, glint, 
 import { buildRingObj, killRingObj } from './ringmesh.ts';
 import { MAXSA, NN, addLineMat, mdl, mdlNames, modelsG, nPulseGeo, needleGeo, neuralG, nodeNames, nodes, pulseG, pulseGuideMat, pulseState, saGeo, syncExtras, syncWeb } from './extras.ts';
 import { G, finish } from './post.ts';
+import type { MatsWithRune } from './extras.ts';
+import type { ProjectionData } from '../../src/types.ts';
+
+// mouse parallax smoothing fields (sx/sy) are written here; state.ts declares only the raw mouse position
+type MouseSmooth = typeof mouse & { sx?: number; sy?: number };
 
 /* ============================================================ per-frame update */
-export const v3 = (x, y, z = 0) => new THREE.Vector3(x, y, z);
-export const wl = (x, y, z = 0, obj = core) => obj.localToWorld(new THREE.Vector3(x, y, z));
+export const v3 = (x: number, y: number, z = 0) => new THREE.Vector3(x, y, z);
+export const wl = (x: number, y: number, z = 0, obj: THREE.Object3D = core) => obj.localToWorld(new THREE.Vector3(x, y, z));
 export const _c = new THREE.Color(), _o = new THREE.Object3D(), _v = new THREE.Vector3();
 
-export function update(dt, adt) {
+export function update(dt: number, adt: number) {
   const k = 1 - Math.exp(-dt / 0.22);
   for (let m = 0; m < 5; m++) mw[m] += ((m === S.mode ? 1 : 0) - mw[m]) * k;
   S.zoomCur += (S.zoom - S.zoomCur) * (1 - Math.exp(-dt / 0.15));
@@ -59,8 +63,8 @@ export function update(dt, adt) {
   });
   for (let i = ghosts.length - 1; i >= 0; i--) { const g = ghosts[i]; g.alpha -= dt * 1.2; g.rot += g.dir * 0.05 * adt; if (g.alpha <= 0.01) { killRingObj(g); ghosts.splice(i, 1); } }
   // camera: lissajous drift + mouse parallax + zoom
-  mouse.sx = (mouse.sx || 0) + (mouse.nx - (mouse.sx || 0)) * (1 - Math.exp(-dt / 0.35)); mouse.sy = (mouse.sy || 0) + (mouse.ny - (mouse.sy || 0)) * (1 - Math.exp(-dt / 0.35));
-  S.camX = Math.sin(S.T * 0.11) * 0.10 * motion + mouse.sx * 0.12; S.camY = Math.cos(S.T * 0.083) * 0.06 * motion + mouse.sy * 0.07;
+  const ms = mouse as MouseSmooth; ms.sx = (ms.sx || 0) + (mouse.nx - (ms.sx || 0)) * (1 - Math.exp(-dt / 0.35)); ms.sy = (ms.sy || 0) + (mouse.ny - (ms.sy || 0)) * (1 - Math.exp(-dt / 0.35));
+  S.camX = Math.sin(S.T * 0.11) * 0.10 * motion + ms.sx * 0.12; S.camY = Math.cos(S.T * 0.083) * 0.06 * motion + ms.sy * 0.07;
   const aspect = G.W / G.H, needH = Math.max(1.8, 2.0 / aspect); G.camD = needH / 2 / FOV_T / S.zoomCur;
   camera.position.set(S.camX, S.camY, G.camD); camera.lookAt(0, 0, 0); camera.updateMatrixWorld();
   G.pxu = G.H / (2 * G.camD * FOV_T); U.uPx.value = (G.H * G.dpr) / (2 * FOV_T);
@@ -69,7 +73,7 @@ export function update(dt, adt) {
 }
 
 export const beac = [170, 238, 255];
-export function syncScene(now) {
+export function syncScene(now: number) {
   const act = Math.max(view.act, 0.8 * view.ex), cs = view.cs;
   S.flick = 0.93 + 0.05 * Math.sin(S.T * 23.1) * Math.sin(S.T * 7.3) + 0.03 * Math.sin(S.T * 3.1) - (Math.sin(S.T * 0.7) > 0.985 ? 0.25 : 0);
   { const ph = (S.T * 0.85) % 1; S.hb = Math.pow(Math.max(0, Math.sin(ph * Math.PI * 2 * 1.0)), 6) + 0.6 * Math.pow(Math.max(0, Math.sin(ph * Math.PI * 2 - 1.2)), 6); }
@@ -77,10 +81,10 @@ export function syncScene(now) {
   if (exv > 0.04 && exv < 0.96) triK *= 1 - 0.6 * clamp(exv * (1 - exv) * 4, 0, 1) * (hash(Math.floor(S.T * 24), 5) < 0.45 ? 1 : 0);
   const fk = S.flick * triK; frameG.visible = triK > 0.012;
   const F = pal.frame, Hh = pal.hot, tint = mix(view.tint, pal.core, 0.35);
-  U.uFrame.value.set(...lin(F)); U.uCore.value.set(...lin(pal.core)); U.uHot.value.set(...lin(Hh)); U.uDim.value.set(...lin(pal.dim)); U.uTint.value.set(...lin(view.tint)); U.uAct.value = Math.min(act, 0.42); U.uBgBase.value.set(...pal.bgBase); U.uBgVein.value.set(...pal.bgVein); U.uGrain.value = pal.grain; finish.uniforms.uLift.value.set(...pal.lift);
+  U.uFrame.value.fromArray(lin(F)); U.uCore.value.fromArray(lin(pal.core)); U.uHot.value.fromArray(lin(Hh)); U.uDim.value.fromArray(lin(pal.dim)); U.uTint.value.fromArray(lin(view.tint)); U.uAct.value = Math.min(act, 0.42); U.uBgBase.value.fromArray(pal.bgBase); U.uBgVein.value.fromArray(pal.bgVein); U.uGrain.value = pal.grain; finish.uniforms.uLift.value.set(...pal.lift);
   const dim = S.mode === 0 ? 1 : 0.8;
   setC(mats.tubeOut, neon(F, 2.2 * fk * dim)); setC(mats.tubeIn, neon(F, 1.7 * fk * dim)); setC(mats.white, lin(mix(F, [255, 200, 190], 0.6), 1.7 * fk));
-  setC(mats.gaugeBase, lin(F, 0.8 * triK)); setC(mats.rune, lin(F, 1.5 * fk)); setC(mats.gaugeLit, lin(mix(F, Hh, 0.5), 3.2 * fk)); setC(mats.spark, lin([255, 225, 215], 1.6 * fk));
+  setC(mats.gaugeBase, lin(F, 0.8 * triK)); setC((mats as MatsWithRune).rune, lin(F, 1.5 * fk)); setC(mats.gaugeLit, lin(mix(F, Hh, 0.5), 3.2 * fk)); setC(mats.spark, lin([255, 225, 215], 1.6 * fk));
   setC(mats.tick, lin(F, 1.0 * fk)); mats.chev.forEach((m, kk) => setC(m, lin(F, (2.2 - kk * 0.5) * fk * (0.7 + 0.3 * Math.sin(S.T * 2 - kk * 0.8)))));
   setC(mats.dial, lin(pal.core, 0.5));
   // gauges
@@ -171,7 +175,7 @@ export function syncScene(now) {
   syncExtras(view.ex * mw[0], triK); syncWeb(view.wg);
   syncNeural(ease(clamp(mw[2], 0, 1))); syncPulse(ease(clamp(mw[3], 0, 1))); syncModels(ease(clamp(mw[4], 0, 1)));
   // gauge + hour labels
-  const s = data.summary, pj = (s && s.projection) || {};
+  const s = data.summary, pj = ((s && s.projection) || {}) as Partial<ProjectionData>;
   const gtx = [
     s ? `TODAY ${fmtCost(pj.today ? pj.today.cost : 0)} / PACE ${fmtCost(pj.today && pj.today.pace ? pj.today.pace.cost : 0)}` : 'TODAY -',
     s ? `CACHE ${((s.totals.cacheHit || 0) * 100).toFixed(1)}%` : 'CACHE -',
@@ -183,7 +187,7 @@ export function syncScene(now) {
 }
 export const sphereMats = [...nodes.map((n) => n.mat), ...mdl.map((m) => m.mat)];
 
-export function syncNeural(e) {
+export function syncNeural(e: number) {
   neuralG.visible = e > 0.01; if (!neuralG.visible) return;
   const s = data.summary; const ents = s && s.perAgentType ? Object.entries(s.perAgentType).sort((a, b) => b[1].tokens - a[1].tokens).slice(0, NN) : [];
   const maxT = Math.max(1, ...ents.map((x) => x[1].tokens)), n = ents.length, rp = view.pupil;
@@ -208,7 +212,7 @@ export function syncNeural(e) {
   nPulseGeo.attributes.position.needsUpdate = nPulseGeo.attributes.aC.needsUpdate = true;
 }
 
-export function syncPulse(e) {
+export function syncPulse(e: number) {
   pulseG.visible = e > 0.01; if (!pulseG.visible) return;
   const sr = S.pulse7 && data.series7 ? data.series7 : data.series; if (!sr || !sr.n) return;
   const key = sr; if (pulseState.key !== key) { // rebuild per-model geometry
@@ -235,7 +239,7 @@ export function syncPulse(e) {
   H.label(S.pulse7 ? '7 DAYS · W TOGGLES' : 'TODAY · W FOR 7D', wl(0, -(base_ - 0.06), 0), 0.55 * e, pal.core, 0.9);
 }
 
-export function syncModels(e) {
+export function syncModels(e: number) {
   modelsG.visible = e > 0.01; if (!modelsG.visible) return;
   const s = data.summary; const ms = s && s.perModel ? s.perModel.slice().sort((a, b) => b.total - a.total).slice(0, 8) : []; const n = ms.length;
   mdl.forEach((o, i) => {

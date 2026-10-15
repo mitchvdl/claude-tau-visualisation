@@ -1,4 +1,3 @@
-// @ts-nocheck - TODO(types): remove once this module is typed
 import * as THREE from 'three';
 import { TAU } from './util.ts';
 import { NOISE, U, core, hdr, mats, sphG } from './scene.ts';
@@ -57,7 +56,7 @@ export const ringsG = new THREE.Group(); core.add(ringsG);
 export const hourMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(1, 1, 1) });
 export const hourTicks = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), hourMat, 12); hourTicks.instanceMatrix.setUsage(THREE.DynamicDrawUsage); hourTicks.frustumCulled = false; core.add(hourTicks);
 for (let i = 0; i < 12; i++) hourTicks.setColorAt(i, new THREE.Color(1, 1, 1));
-export const clockStripes = [];
+export const clockStripes: { x: number; y: number; str: string }[] = [];
 export const hourCap = new THREE.Mesh(sphG, hdr(1)); hourCap.scale.setScalar(0.0095); core.add(hourCap);
 export const hourLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]), new THREE.LineBasicMaterial({ color: 0xffffff, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); hourLine.frustumCulled = false; core.add(hourLine);
 mats.min = new THREE.LineBasicMaterial({ color: 0xffffff, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false });

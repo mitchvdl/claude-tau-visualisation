@@ -1,4 +1,3 @@
-// @ts-nocheck - TODO(types): remove once this module is typed
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
@@ -20,7 +19,7 @@ export const FinishShader = {
     col+=(hh(vUv*uRes+fract(uTime)*91.)-.5)*uGrain;
     gl_FragColor=vec4(col,1.); }`,
 };
-export let composer, bloom, finish;
+export let composer: EffectComposer, bloom: UnrealBloomPass, finish: ShaderPass;
 export const rtMS = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 });
 composer = new EffectComposer(renderer, rtMS);
 composer.addPass(new RenderPass(scene, camera));

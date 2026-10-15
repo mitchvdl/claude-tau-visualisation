@@ -1,4 +1,4 @@
-// @ts-nocheck - TODO(types): remove once this module is typed
+import type * as THREE from 'three';
 import { H } from './shared.ts';
 import { clamp, rgba } from './util.ts';
 import { $ } from './dom.ts';
@@ -6,11 +6,15 @@ import { camera } from './scene.ts';
 import { G } from './post.ts';
 
 /* ============================================================ HTML label layer (projected from 3D) */
-export const lblEl = $('lbls'); export const lblPool = []; export let lblQ = [];
-export function label(txt, pos, a, col, size, o) { lblQ.push({ txt, pos, a, col, size, o: o || {} }); }
+// pooled label element (custom fields cache the last text / warn state)
+export interface LabelEl extends HTMLDivElement { _t?: string; _w?: boolean; _on?: boolean }
+export interface LabelOpts { warn?: boolean; edge?: THREE.Vector3[] }
+export interface Label { txt: string; pos: THREE.Vector3; a: number; col: number[]; size: number; o: LabelOpts }
+export const lblEl = $('lbls'); export const lblPool: LabelEl[] = []; export let lblQ: Label[] = [];
+export function label(txt: string, pos: THREE.Vector3, a: number, col: number[], size: number, o?: LabelOpts) { lblQ.push({ txt, pos, a, col, size, o: o || {} }); }
 export function flushLabels() {
   const W = G.W, H = G.H, fs = clamp(G.pxu * 0.021, 9, 13);
-  const scr = (p) => { const q = p.clone().project(camera); return [(q.x * 0.5 + 0.5) * W, (-q.y * 0.5 + 0.5) * H, q.z]; };
+  const scr = (p: THREE.Vector3): number[] => { const q = p.clone().project(camera); return [(q.x * 0.5 + 0.5) * W, (-q.y * 0.5 + 0.5) * H, q.z]; };
   lblQ.forEach((l, i) => {
     let el = lblPool[i]; if (!el) { el = document.createElement('div'); el.className = 'lbl'; lblEl.append(el); lblPool[i] = el; }
     if (el._t !== l.txt) { el.textContent = l.txt; el._t = l.txt; }

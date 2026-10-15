@@ -1,4 +1,3 @@
-// @ts-nocheck - TODO(types): remove once this module is typed
 import * as THREE from 'three';
 import { S } from './shared.ts';
 import { TAU, clamp } from './util.ts';
@@ -14,10 +13,10 @@ import { closePanels, openDetail, renderLegend, say, showTip, toggleHelp, update
 import { feedToggle } from './feed.ts';
 
 /* ============================================================ input */
-export function setMode(m) { S.mode = (m + 5) % 5; hudEls.mode.textContent = `${S.mode + 1} ${MODES[S.mode]}`; updateMemcard(); renderLegend(); say(['Core online.', 'Unravelling memory.', 'Mapping my sub-minds.', 'Listening to my own pulse.', 'The models that compose me.'][S.mode]); }
-export function select(d) { if (!S.rings.length) return; S.sel = (S.sel + d + S.rings.length) % S.rings.length; updateMemcard(); if (S.detailOpen) openDetail(); }
+export function setMode(m: number) { S.mode = (m + 5) % 5; hudEls.mode.textContent = `${S.mode + 1} ${MODES[S.mode]}`; updateMemcard(); renderLegend(); say(['Core online.', 'Unravelling memory.', 'Mapping my sub-minds.', 'Listening to my own pulse.', 'The models that compose me.'][S.mode]); }
+export function select(d: number) { if (!S.rings.length) return; S.sel = (S.sel + d + S.rings.length) % S.rings.length; updateMemcard(); if (S.detailOpen) openDetail(); }
 export function cycleIssue() {
-  issuesChanged(); const idx = S.rings.map((r, i) => (r.iss && r.iss.length ? i : -1)).filter((i) => i >= 0);
+  (issuesChanged as () => void)(); const idx = S.rings.map((r, i) => (r.iss && r.iss.length ? i : -1)).filter((i) => i >= 0);
   if (!idx.length) { const g = globalIssues(); say(g.length ? `Warning: ${g[0].msg}.` : 'No faults detected. Memory is intact.'); return; }
   const next = idx.find((i) => i > S.sel) ?? idx[0]; S.sel = next; updateMemcard(); openDetail();
   const r = S.rings[next], worst = r.iss.find((x) => x.severity === 'error') || r.iss[0]; say(worst.severity === 'error' ? `Memory ${next + 1} is fragmenting: ${worst.msg}.` : `Memory ${next + 1}: ${worst.msg}.`);
@@ -31,7 +30,7 @@ addEventListener('keydown', (e) => {
   else if (k === 'ArrowLeft' || k === 'j' || k === 'J') select(-1);
   else if (k === 'Enter') openDetail();
   else if (k === 'i' || k === 'I') cycleIssue();
-  else if (k === 'l' || k === 'L') feedToggle();
+  else if (k === 'l' || k === 'L') (feedToggle as () => void)();
   else if (k === 'x' || k === 'X') triggerReceive(k === 'X' ? 0.2 : 1, {});
   else if (k === 'Escape') closePanels();
   else if (k === ' ') { e.preventDefault(); S.frozen = !S.frozen; }
@@ -43,13 +42,13 @@ addEventListener('keydown', (e) => {
   else if (k === 'w' || k === 'W') { if (S.mode === 3) { S.pulse7 = !S.pulse7; refresh('manual'); renderLegend(); } }
   else if (k === 'b' || k === 'B' || k === 'g' || k === 'G') location.href = '/';
   
-  else if (k === '?' || k === '/') toggleHelp();
+  else if (k === '?' || k === '/') (toggleHelp as () => void)();
 });
 // analytic "raycast": intersect the pointer ray with each ring's tilted plane, test radius/angle in ring space
 export const ray = new THREE.Raycaster(), inv = new THREE.Matrix4();
-export function ringAt(x, y) {
+export function ringAt(x: number, y: number): number {
   if (mw[0] + mw[1] < 0.5) return -1;
-  ray.setFromCamera({ x: (x / G.W) * 2 - 1, y: -(y / G.H) * 2 + 1 }, camera); let best = -1, bd = 1e9; const margin = 0.006 / S.zoomCur;
+  ray.setFromCamera(new THREE.Vector2((x / G.W) * 2 - 1, -(y / G.H) * 2 + 1), camera); let best = -1, bd = 1e9; const margin = 0.006 / S.zoomCur;
   S.rings.forEach((r, i) => {
     if (!r.obj || r.alpha < 0.3) return; inv.copy(r.obj.matrixWorld).invert();
     const o = ray.ray.origin.clone().applyMatrix4(inv), d = ray.ray.direction.clone().transformDirection(inv); if (Math.abs(d.z) < 1e-6) return;
@@ -59,7 +58,7 @@ export function ringAt(x, y) {
   });
   return best;
 }
-export function onMove(e) {
+export function onMove(e: MouseEvent) {
   touch(); mouse.x = e.clientX; mouse.y = e.clientY; mouse.in = true; mouse.nx = (e.clientX / G.W - 0.5) * 2; mouse.ny = -(e.clientY / G.H - 0.5) * 2;
   S.hover = ringAt(e.clientX, e.clientY);
   const q = core.localToWorld(new THREE.Vector3(clockState.x, clockState.y, 0.004)).project(camera); const cx = (q.x * 0.5 + 0.5) * G.W, cy = (-q.y * 0.5 + 0.5) * G.H;

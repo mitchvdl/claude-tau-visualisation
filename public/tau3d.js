@@ -776,7 +776,7 @@ function update(dt, adt) {
   rings.forEach((r, i) => {
     const w = 0.5 + r.nl * 1.5, thc = (avail * w) / total; const rc = acc + thc / 2; acc += thc + gap;
     let tr, tth, ta0, tsp, tal, trw;
-    if (mode === 1) { tr = 0.105 + i * 0.0175; tth = 0.009 + 0.012 * r.nl; ta0 = -Math.PI / 2 + i * 1.05; tsp = 0.9 + 1.7 * r.nl; tal = 0.95; trw = 0.03; }
+    if (mode === 1) { tr = 0.105 + i * 0.0175; tth = 0.007 + 0.007 * r.nl; ta0 = -Math.PI / 2 + i * 1.05; tsp = 0.9 + 1.7 * r.nl; tal = 0.95; trw = 0.03; }
     else { tr = rc * cs; tth = thc * cs; ta0 = 0; tsp = TAU; tal = mode === 0 ? 1 : 0.6; trw = 1; }
     r.r += (tr - r.r) * k; r.th += (tth - r.th) * k; r.a0 += (ta0 - r.a0) * k; r.span += (tsp - r.span) * k; r.alpha += (tal - r.alpha) * k; r.rotW += (trw - r.rotW) * k;
     const s = r.s; const rec = Math.exp(-(Date.now() - new Date(s.last).getTime()) / 21600000);

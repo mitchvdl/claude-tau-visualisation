@@ -79,6 +79,10 @@ export async function openDetail() {
   const cvs = document.createElement('canvas');
   const h4 = (t: string) => { const e = document.createElement('h4'); e.textContent = t; return e; };
   el.append(x, sub, h);
+  const sid = document.createElement('div'); sid.className = 'sid'; sid.textContent = d.id; sid.title = 'session id';
+  const cp = (label: string, text: string, tip: string) => { const b = document.createElement('button'); b.className = 'cp'; b.textContent = label; b.title = tip; b.onclick = async () => { let ok = false; try { await navigator.clipboard.writeText(text); ok = true; } catch { /* fall back */ } if (!ok) { const ta = document.createElement('textarea'); ta.value = text; ta.style.cssText = 'position:fixed;opacity:0'; document.body.append(ta); ta.select(); try { ok = document.execCommand('copy'); } catch { /* ignore */ } ta.remove(); } b.textContent = ok ? 'COPIED' : 'COPY FAILED'; setTimeout(() => { b.textContent = label; }, 1400); }; return b; };
+  const row = document.createElement('div'); row.className = 'cprow'; row.append(cp('COPY ID', d.id, 'copy the session id'), cp('COPY RESUME', (d.cwd ? `cd '${d.cwd.replace(/'/g, `'\\''`)}' && ` : '') + `claude --resume ${d.id}`, 'cd into the project and run claude --resume <id>'));
+  el.append(sid, row);
   const iss = r.iss || []; if (iss.length) { el.append(h4(`ISSUES (${iss.length})`)); iss.forEach((i) => el.append(issLine(i))); }
   el.append(kv('Cost', fmtCost(d.cost)), kv('Tokens', fmtTok(d.tokens && d.tokens.total)), kv('Duration', fmtDur(d.durationMs)), kv('Prompts', d.promptCount), kv('Calls / tools', `${d.callCount != null ? d.callCount : (d.calls || []).length} / ${d.toolCalls}`), kv('Cache hit', ((d.cacheHit || 0) * 100).toFixed(1) + '%'), kv('Models', (d.perModel || []).map((m) => shortModel(m.model)).join(', ') || '-'), kv('Effort', d.effort || '-'), kv('Started', ago(d.first)));
   el.append(h4('CONTEXT PER CALL'), cvs); drawSpark(cvs, d.calls || []);

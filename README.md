@@ -32,6 +32,10 @@ The dashboard header has a **Stats | 3D** switch. Press `G` on the dashboard to 
 
 Mode, palette, HUD, voice and the pulse window are remembered in `localStorage` (`tau3d.settings`); URL params such as `?mode=` and `?pal=` override them. The outer dial is an analog clock: the dot with the comet tail is the seconds (one lap per minute), the short bright stripe inside the dial is the minutes, and the long stripe outside is the hour, gliding through its hour wedge (stripe length = calls in that hour; the other 11 stripes are the previous hours). Hover the dot for hh:mm:ss. The core and rings breathe slowly; the outer rings are built from small rectangular blocks, the inner ones from rounded segments. The 3D view uses three.js 0.170.0 (vendored in `public/vendor/three/`, MIT), no CDN at runtime.
 
+### Resuming a session
+
+The session drawer (dashboard) and the detail panel (3D, `Enter`) show the full session id with **Copy ID** and **Copy resume command** buttons. The latter copies `cd '<project dir>' && claude --resume <id>`.
+
 ### Agent box and settings
 
 When a sub-agent is running, a faded box in the bottom-right corner (mirroring the feed) shows the newest agent's type, model, description and the prompt it was given, with its recent output text drifting slowly upward behind a fade. It lingers ~25 s after the agent finishes. `?demo=agent` shows a fake one.

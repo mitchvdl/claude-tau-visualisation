@@ -658,6 +658,18 @@ async function loadDrawer(fresh: boolean) {
     drawerCharts(d);
   } catch (e) { $('drawerBody').replaceChildren(h('p', { text: 'Could not load session: ' + e.message })); }
 }
+// copy text to the clipboard (async API on secure contexts like localhost, execCommand fallback); the button briefly says Copied
+async function copyText(text: string): Promise<boolean> {
+  try { await navigator.clipboard.writeText(text); return true; } catch { /* fall back */ }
+  const ta = document.createElement('textarea'); ta.value = text; ta.style.cssText = 'position:fixed;opacity:0'; document.body.append(ta); ta.select();
+  let ok = false; try { ok = document.execCommand('copy'); } catch { /* ignore */ } ta.remove(); return ok;
+}
+function copyBtn(label: string, text: string, title: string): HTMLElement {
+  const b = h('button', { class: 'cp', type: 'button', text: label, title });
+  b.addEventListener('click', async () => { const ok = await copyText(text); b.textContent = ok ? 'Copied' : 'Copy failed'; setTimeout(() => { b.textContent = label; }, 1400); });
+  return b;
+}
+const resumeCmd = (cwd: string, id: string) => (cwd ? `cd '${cwd.replace(/'/g, `'\\''`)}' && ` : '') + `claude --resume ${id}`;
 function kv(rows: KvRow[]) { return h('dl', { class: 'kv' }, rows.flatMap(([k, v, t]) => [h('dt', { text: k }), h('dd', { text: String(v), title: t || '' })])); }
 function drawerContent(d: SessionDetail) {
   const rp = d.reported;
@@ -677,6 +689,7 @@ function drawerContent(d: SessionDetail) {
   return [
     h('h3', { text: d.title }),
     h('div', { class: 'sub', text: (d.isActive ? 'ACTIVE · ' : '') + d.id }),
+    h('div', { class: 'copyrow' }, copyBtn('Copy ID', d.id, 'Copy the session id'), copyBtn('Copy resume command', resumeCmd(d.cwd, d.id), 'cd into the project and run claude --resume <id>')),
     h('h4', { text: 'Overview' }),
     kv([
       ['Project', d.cwd || '-'], ['Branch', d.gitBranch || '-'], ['Claude Code', d.version || '-'],

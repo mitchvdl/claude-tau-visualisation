@@ -126,3 +126,9 @@ a.back { color: inherit; }
 #settings .sx-btn:hover, #settings .sx-btn:focus-visible { background: rgba(var(--f), .2); color: #ffe9c8; outline: none; }
 #settings .sx-fh { opacity: .5; font-size: 9.5px; letter-spacing: .03em; white-space: nowrap; }
 @media (max-width: 760px) { #settings { top: 56px; left: 8px; right: 8px; width: auto; max-width: none; max-height: calc(100vh - 80px); } }
+
+/* ---- session id + copy buttons in the detail panel ---- */
+#detail .sid { font-size: 10px; letter-spacing: .04em; opacity: .65; word-break: break-all; margin: -2px 0 6px; user-select: all; }
+#detail .cprow { display: flex; gap: 8px; margin-bottom: 8px; }
+#detail .cp { font: 10px var(--mono); letter-spacing: .14em; padding: 3px 8px; color: rgb(var(--c)); background: transparent; border: 1px solid rgba(var(--f), .45); cursor: pointer; }
+#detail .cp:hover { background: rgba(var(--f), .18); }

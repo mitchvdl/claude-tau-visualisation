@@ -1,6 +1,6 @@
-import { S } from './shared.ts';
+import { S, saved } from './shared.ts';
 import { clamp } from './util.ts';
-import { hudEls, params } from './dom.ts';
+import { $, hudEls, params } from './dom.ts';
 import { PALETTES, pal, palIndexOf } from './palettes.ts';
 import { connectEvents, refresh } from './data.ts';
 import { issuesChanged } from './issues.ts';
@@ -51,6 +51,8 @@ document.addEventListener('visibilitychange', () => { last = 0; });
 setInterval(() => (issuesChanged as () => void)(), 4000);
 
 resize(); hudEls.mode.textContent = `${S.mode + 1} ${MODES[S.mode]}`;
+$('hud').classList.toggle('off', !S.hudOn); $('voice').classList.toggle('off', !S.voiceOn);
+if (!params.has('pal') && saved.pal) { S.palIdx = palIndexOf(saved.pal); hudEls.pal.textContent = PALETTES[S.palIdx].name; Object.assign(pal, JSON.parse(JSON.stringify(PALETTES[S.palIdx]))); }
 if (params.has('pal')) { S.palIdx = palIndexOf(params.get('pal')); hudEls.pal.textContent = PALETTES[S.palIdx].name; Object.assign(pal, JSON.parse(JSON.stringify(PALETTES[S.palIdx]))); }
 if (params.get('sel')) S.sel = +params.get('sel') || 0;
 if (params.get('help') === '1') toggleHelp(true);

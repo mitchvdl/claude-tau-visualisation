@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { S } from './shared.ts';
+import { S, saveSettings } from './shared.ts';
 import { TAU, clamp } from './util.ts';
 import { $, hudEls } from './dom.ts';
 import { PALETTES } from './palettes.ts';
@@ -43,6 +43,7 @@ addEventListener('keydown', (e) => {
   else if (k === 'b' || k === 'B' || k === 'g' || k === 'G') { if (window.parent !== window) window.parent.postMessage({ type: 'tau3d:close' }, location.origin); else location.href = '/'; }
   
   else if (k === '?' || k === '/') (toggleHelp as () => void)();
+  saveSettings();
 });
 // analytic "raycast": intersect the pointer ray with each ring's tilted plane, test radius/angle in ring space
 export const ray = new THREE.Raycaster(), inv = new THREE.Matrix4();

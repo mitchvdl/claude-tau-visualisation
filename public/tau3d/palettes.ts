@@ -1,4 +1,5 @@
 import { clamp, mix } from './util.ts';
+import { params } from './dom.ts';
 
 /* ============================================================ palettes + model identity */
 export interface Palette { name: string; frame: number[]; core: number[]; hot: number[]; dim: number[]; bgBase: number[]; bgVein: number[]; lift: number[]; grain: number }
@@ -9,7 +10,16 @@ export const PALETTES: Palette[] = [
   { name: 'VIOLET', frame: [170, 70, 255], core: [220, 130, 255], hot: [248, 225, 255], dim: [120, 60, 255], bgBase: [0.040, 0.028, 0.060], bgVein: [0.80, 0.55, 1.0], lift: [0, 0, 0], grain: 0 },
   // NAVY: film look - dark navy marble, pale bluish veins, grainy grey floor, cool grade; core stays warm, triangle stays red neon
   { name: 'NAVY', frame: [255, 42, 30], core: [255, 150, 40], hot: [255, 228, 160], dim: [255, 84, 36], bgBase: [0.011, 0.030, 0.105], bgVein: [0.72, 0.86, 1.0], lift: [0.004, 0.014, 0.042], grain: 1 },
+  // SPECTRUM: colours drift softly through the whole hue wheel (see spectrumAt); this entry is only the starting point
+  { name: 'SPECTRUM', frame: [255, 42, 30], core: [255, 150, 40], hot: [255, 228, 160], dim: [255, 84, 36], bgBase: [0.052, 0.032, 0.026], bgVein: [0.95, 0.52, 0.14], lift: [0, 0, 0], grain: 0 },
 ];
+const hsv = (h: number, s: number, v: number): number[] => { h = ((h % 1) + 1) % 1; const i = Math.floor(h * 6), f = h * 6 - i, p = v * (1 - s), q = v * (1 - f * s), t = v * (1 - (1 - f) * s); return [[v, t, p], [q, v, p], [p, v, t], [p, q, v], [t, p, v], [v, p, q]][i % 6]; };
+export const SPECTRUM_PERIOD = 120; // seconds for one lap of the hue wheel
+const specShift = (parseFloat(params.get('spec') ?? '') || 0) * SPECTRUM_PERIOD; // ?spec=0..1 offsets the hue (for screenshots)
+export function spectrumAt(T: number): Palette {
+  const h = ((T + specShift) / SPECTRUM_PERIOD) % 1, c = (hh: number, s: number, v: number) => hsv(hh, s, v).map((x) => Math.round(x * 255));
+  return { name: 'SPECTRUM', frame: c(h, 0.88, 1), core: c(h + 0.08, 0.84, 1), hot: c(h + 0.11, 0.37, 1), dim: c(h, 0.86, 1), bgBase: hsv(h, 0.45, 0.05), bgVein: hsv(h + 0.04, 0.55, 0.95), lift: [0, 0, 0], grain: 0 };
+}
 export const palIndexOf = (v: string | number | null): number => { if (v == null) return 0; const i = PALETTES.findIndex((q) => q.name.toLowerCase() === String(v).toLowerCase()); return i >= 0 ? i : clamp(parseInt(String(v), 10) || 0, 0, PALETTES.length - 1); };
 export const PAL_KEYS: PalKey[] = ['frame', 'core', 'hot', 'dim', 'bgBase', 'bgVein', 'lift'];
 export const pal: Palette = JSON.parse(JSON.stringify(PALETTES[0]));

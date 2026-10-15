@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { H, S } from './shared.ts';
 import { TAU, clamp, ease, fmtCost, fmtTok, hash, lerp, lin, mix, shortModel } from './util.ts';
 import { setC } from './dom.ts';
-import { PALETTES, PAL_KEYS, modelColor, pal } from './palettes.ts';
+import { PALETTES, PAL_KEYS, modelColor, pal, spectrumAt } from './palettes.ts';
 import { clockHours, data } from './data.ts';
 import { envE, envW, ghosts, motion, mouse, mw, recv, shocks, view } from './state.ts';
 import { FOV_T, U, camera, core, frameG, frames, gauges, mats, neon, setSeg, sparks, world } from './scene.ts';
@@ -25,7 +25,7 @@ export function update(dt: number, adt: number) {
   const k = 1 - Math.exp(-dt / 0.22);
   for (let m = 0; m < 5; m++) mw[m] += ((m === S.mode ? 1 : 0) - mw[m]) * k;
   S.zoomCur += (S.zoom - S.zoomCur) * (1 - Math.exp(-dt / 0.15));
-  const P = PALETTES[S.palIdx], kp = 1 - Math.exp(-dt / 0.25);
+  const P = PALETTES[S.palIdx].name === 'SPECTRUM' ? spectrumAt(S.T) : PALETTES[S.palIdx], kp = 1 - Math.exp(-dt / 0.25);
   for (const key of PAL_KEYS) for (let i = 0; i < 3; i++) pal[key][i] += (P[key][i] - pal[key][i]) * kp;
   pal.grain += (P.grain - pal.grain) * kp;
   { const tb = S.palIdx === 1 ? [255, 255, 255] : S.palIdx === 2 ? [190, 255, 225] : [170, 238, 255]; for (let i = 0; i < 3; i++) beac[i] += (tb[i] - beac[i]) * kp; document.documentElement.style.setProperty('--bc', beac.map(Math.round).join(',')); }

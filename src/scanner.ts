@@ -46,10 +46,20 @@ function getSession(st: ScannerState, id: string): Session {
 function getAgent(sess: Session, id: string): AgentStat {
   let a = sess.agentStats.get(id);
   if (!a) {
-    a = { id, metaType: '', metaDesc: '', metaModel: '', attrType: '', models: new Set(), acc: newAcc(), first: null, last: null, mtime: 0, effort: null };
+    a = { id, metaType: '', metaDesc: '', metaModel: '', attrType: '', models: new Set(), acc: newAcc(), first: null, last: null, mtime: 0, effort: null, prompt: '', out: '' };
     sess.agentStats.set(id, a);
   }
   return a;
+}
+
+// plain text of a message (string content or text blocks); null when it carries tool results (not a prompt / not prose)
+function textOf(o: RawRecord): string | null {
+  const c = o.message && o.message.content;
+  if (typeof c === 'string') return c;
+  if (!Array.isArray(c)) return null;
+  const parts: string[] = [];
+  for (const b of c) { if (!b) continue; if (b.type === 'tool_result') return null; if (b.type === 'text' && typeof b.text === 'string') parts.push(b.text); }
+  return parts.join('\n');
 }
 
 function bump(st: ScannerState, sess: Session, model: string, day: string, cwd: string, ts: string, d: Partial<Acc>): { m: ModelAcc; sm: ModelAcc } {
@@ -159,6 +169,8 @@ function handleLine(st: ScannerState, str: string, fi: FileState): void {
         const a = getAgent(s, aid);
         if (ts) { if (!a.first || ts < a.first) a.first = ts; if (!a.last || ts > a.last) a.last = ts; }
         if (o.attributionAgent) a.attrType = o.attributionAgent;
+        if (t === 'user' && !a.prompt) { const p = textOf(o); if (p && p.trim()) a.prompt = p.trim().slice(0, 600); }
+        else if (t === 'assistant') { const p = textOf(o); if (p && p.trim()) a.out = (a.out + (a.out ? '\n' : '') + p.trim()).slice(-2000); }
       }
       const tur = t === 'user' && !fi.isSub && o.toolUseResult;
       if (tur && typeof tur === 'object' && tur.agentId) {

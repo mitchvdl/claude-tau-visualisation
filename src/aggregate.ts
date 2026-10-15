@@ -77,6 +77,7 @@ function agentView(s: Session, a: AgentStat, now: number, wm?: Map<string, WaitE
     tokens: accTokens(a.acc),
     cost: a.acc.cost, calls: a.acc.calls, toolCalls: a.acc.tools,
     first: a.first, last: a.last, mtime: a.mtime, effort: a.effort || null,
+    prompt: a.prompt, tail: a.out.slice(-1500),
     isActive: !!a.mtime && isLive(a.mtime, now),
     waiting: (wm && wm.get(s.id) && wm.get(s.id).agents.get(a.id)) || null,
   };

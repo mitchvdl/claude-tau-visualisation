@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TAU 3D</title>
 <link rel="stylesheet" href="tau3d.css">
+<link rel="stylesheet" href="tau3d.agents.css">
 <script type="importmap">{"imports":{"three":"/vendor/three/three.module.js","three/addons/":"/vendor/three/addons/"}}</script>
 </head>
 <body>
@@ -29,13 +30,15 @@
   <div class="hc br">
     <div class="row"><span>MODE</span><b id="hMode">CORE</b></div>
     <div class="row"><span>PALETTE</span><b id="hPal">TAU</b></div>
-    <div class="hint">? for controls</div></div>
+    <div class="hint">? controls · O settings</div></div>
 </div>
 
 <div id="lbls"></div>
 <svg id="wsvg"></svg>
 <div id="wblk"></div>
 <div id="feed"><div class="ft"><span>tau://feed</span><i class="cur"></i></div><div id="feedBody"><div id="feedIn"></div></div></div>
+<div id="agentbox"><div class="ah"><span id="abHead"></span><span class="as" id="abStat"></span></div><div class="ad" id="abDesc"></div><div class="ap" id="abPrompt"></div><div class="ao" id="abOut"><div class="ai" id="abIn"></div></div></div>
+<aside id="settings" hidden></aside>
 <div id="legend"></div>
 <div id="voice"></div>
 <div id="memcard" hidden></div>

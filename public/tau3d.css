@@ -94,3 +94,35 @@ a.back { color: inherit; }
 @media (max-width: 760px) { .wb { font-size: 9px; line-height: 12px; } }
 
 .wb .wr { opacity: .7; letter-spacing: .06em; font-size: 9.5px; margin-bottom: 2px; text-transform: lowercase; }
+
+/* ============================================================ settings panel (public/tau3d/settings.ts, key O) */
+#settings { position: fixed; top: 64px; right: 16px; width: 320px; max-width: calc(100vw - 32px); max-height: calc(100vh - 100px); overflow-y: auto; z-index: 7; pointer-events: auto;
+  display: block; background: rgba(10,3,3,.84); border: 1px solid rgba(var(--f), .45); box-shadow: 0 0 24px rgba(var(--f), .25), inset 0 0 30px rgba(var(--f), .06);
+  backdrop-filter: blur(6px); color: rgb(var(--c)); font: 11px/1.5 var(--mono); }
+#settings[hidden] { display: none; }
+#settings .sx-head { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; align-items: center; padding: 12px 16px 10px; background: rgba(10,3,3,.96); border-bottom: 1px solid rgba(var(--f), .3); }
+#settings .sx-title { margin: 0; font-size: 12px; letter-spacing: .3em; color: rgb(var(--f)); font-weight: 500; }
+#settings .sx-x { background: none; border: 0; color: rgb(var(--c)); font: 18px/1 var(--mono); cursor: pointer; opacity: .6; padding: 2px 4px; }
+#settings .sx-x:hover, #settings .sx-x:focus-visible { opacity: 1; color: #ffe9c8; }
+#settings .sx-body { padding: 2px 16px 8px; }
+#settings .sx-gt { margin: 14px 0 2px; font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: rgb(var(--f)); font-weight: 500; }
+#settings .sx-row { padding: 6px 0; border-top: 1px solid rgba(var(--f), .15); }
+#settings .sx-hd { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+#settings .sx-l { text-transform: uppercase; letter-spacing: .1em; opacity: .7; }
+#settings .sx-v { color: #ffe9c8; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+#settings .sx-note { margin-top: 2px; opacity: .5; font-size: 10px; letter-spacing: .03em; }
+#settings input[type=range] { display: block; width: 100%; margin: 6px 0 2px; accent-color: rgb(var(--f)); cursor: pointer; }
+#settings .sx-sel { display: block; width: 100%; margin-top: 6px; background: rgba(4,2,2,.9); color: #ffe9c8; border: 1px solid rgba(var(--f), .4); font: inherit; padding: 4px 6px; }
+#settings .sx-sel:focus-visible, #settings input[type=range]:focus-visible { outline: 1px solid rgb(var(--c)); outline-offset: 2px; }
+#settings .sx-sw { position: relative; display: inline-block; width: 36px; height: 16px; margin-top: 6px; cursor: pointer; }
+#settings .sx-sw input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+#settings .sx-sw span { position: absolute; inset: 0; border: 1px solid rgba(var(--f), .55); background: rgba(var(--f), .08); pointer-events: none; transition: background .15s, box-shadow .15s; }
+#settings .sx-sw span::after { content: ""; position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; background: rgb(var(--c)); opacity: .6; transition: transform .15s, opacity .15s; }
+#settings .sx-sw input:checked + span { background: rgba(var(--f), .35); box-shadow: 0 0 8px rgba(var(--f), .5); }
+#settings .sx-sw input:checked + span::after { transform: translateX(20px); opacity: 1; background: #ffe9c8; }
+#settings .sx-sw input:focus-visible + span { outline: 1px solid rgb(var(--c)); outline-offset: 2px; }
+#settings .sx-foot { position: sticky; bottom: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 10px 16px 12px; background: rgba(10,3,3,.96); border-top: 1px solid rgba(var(--f), .3); }
+#settings .sx-btn { background: rgba(var(--f), .08); color: rgb(var(--c)); border: 1px solid rgba(var(--f), .5); font: inherit; letter-spacing: .1em; text-transform: uppercase; padding: 4px 10px; cursor: pointer; }
+#settings .sx-btn:hover, #settings .sx-btn:focus-visible { background: rgba(var(--f), .2); color: #ffe9c8; outline: none; }
+#settings .sx-fh { opacity: .5; font-size: 9.5px; letter-spacing: .03em; white-space: nowrap; }
+@media (max-width: 760px) { #settings { top: 56px; left: 8px; right: 8px; width: auto; max-width: none; max-height: calc(100vh - 80px); } }

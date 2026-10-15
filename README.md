@@ -32,9 +32,15 @@ The dashboard header has a **Stats | 3D** switch. Press `G` on the dashboard to 
 
 Mode, palette, HUD, voice and the pulse window are remembered in `localStorage` (`tau3d.settings`); URL params such as `?mode=` and `?pal=` override them. The outer dial is an analog clock: the dot with the comet tail is the seconds (one lap per minute), the short bright stripe inside the dial is the minutes, and the long stripe outside is the hour, gliding through its hour wedge (stripe length = calls in that hour; the other 11 stripes are the previous hours). Hover the dot for hh:mm:ss. The core and rings breathe slowly; the outer rings are built from small rectangular blocks, the inner ones from rounded segments. The 3D view uses three.js 0.170.0 (vendored in `public/vendor/three/`, MIT), no CDN at runtime.
 
+### Agent box and settings
+
+When a sub-agent is running, a faded box in the bottom-right corner (mirroring the feed) shows the newest agent's type, model, description and the prompt it was given, with its recent output text drifting slowly upward behind a fade. It lingers ~25 s after the agent finishes. `?demo=agent` shows a fake one.
+
+Press `O` (or `,`) for the settings panel: palette, spectrum lap time, bloom, breathing, bar width and where the rectangular bars start, motion speed, camera drift, frame rate, HUD / voice / feed toggles and the agent box (on/off, output text, opacity, scroll speed). Everything is saved in this browser and `Reset to defaults` restores the look.
+
 ## What it reads
 
-Under `CLAUDE_HOME` only: `projects/**/*.jsonl` (including `subagents/`), `projects/*/sessions-index.json`, `history.jsonl`, `stats-cache.json`, `settings.json` and the status files `sessions/*.json` (only pid, session id, cwd, kind, name, status, waitingFor, statusUpdatedAt are kept). Credentials and `sessions/*.key` are never opened. Prompts are shown in the UI (first 300 chars), so do not expose the port beyond localhost.
+Under `CLAUDE_HOME` only: `projects/**/*.jsonl` (including `subagents/`), `projects/*/sessions-index.json`, `history.jsonl`, `stats-cache.json`, `settings.json` and the status files `sessions/*.json` (only pid, session id, cwd, kind, name, status, waitingFor, statusUpdatedAt are kept). Credentials and `sessions/*.key` are never opened. Prompts are shown in the UI (first 300 chars), and the API also returns each sub-agent's first prompt (600 chars) and the last ~1,500 characters of its output text for the agent box, so do not expose the port beyond localhost.
 
 ## Cost
 

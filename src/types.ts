@@ -41,6 +41,7 @@ export interface AgentMeta { type: string; description: string; model: string }
 export interface AgentStat {
   id: string; metaType: string; metaDesc: string; metaModel: string; attrType: string; models: Set<string>; acc: Acc;
   first: string | null; last: string | null; mtime: number; effort: string | null;
+  prompt: string; out: string; // first prompt the agent was given (<=600 chars) and a rolling tail of its assistant text (<=2000 chars)
 }
 
 export interface Session {
@@ -100,6 +101,7 @@ export interface LiveView { status: string; waitingFor: string | null; name: str
 export interface AgentView {
   id: string; type: string; description: string; models: string[]; tokens: TokenCounts; cost: number; calls: number; toolCalls: number;
   first: string | null; last: string | null; mtime: number; effort: string | null; isActive: boolean; waiting: WaitInfo | null;
+  prompt: string; tail: string;
 }
 
 export interface SessionSummary {

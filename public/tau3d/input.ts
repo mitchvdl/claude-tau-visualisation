@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { S, saveSettings } from './shared.ts';
+import { openSettings, syncSettings } from './settings.ts';
 import { TAU, clamp } from './util.ts';
 import { $, hudEls } from './dom.ts';
 import { PALETTES } from './palettes.ts';
@@ -32,11 +33,12 @@ addEventListener('keydown', (e) => {
   else if (k === 'i' || k === 'I') cycleIssue();
   else if (k === 'l' || k === 'L') (feedToggle as () => void)();
   else if (k === 'x' || k === 'X') triggerReceive(k === 'X' ? 0.2 : 1, {});
-  else if (k === 'Escape') closePanels();
+  else if (k === 'Escape') { closePanels(); openSettings(false); }
+  else if (k === 'o' || k === 'O' || k === ',') openSettings();
   else if (k === ' ') { e.preventDefault(); S.frozen = !S.frozen; }
   else if (k === 'h' || k === 'H') { S.hudOn = !S.hudOn; $('hud').classList.toggle('off', !S.hudOn); }
   else if (k === 'v' || k === 'V') { S.voiceOn = !S.voiceOn; $('voice').classList.toggle('off', !S.voiceOn); }
-  else if (k === 'c' || k === 'C') { S.palIdx = (S.palIdx + 1) % PALETTES.length; hudEls.pal.textContent = PALETTES[S.palIdx].name; }
+  else if (k === 'c' || k === 'C') { S.palIdx = (S.palIdx + 1) % PALETTES.length; hudEls.pal.textContent = PALETTES[S.palIdx].name; syncSettings(); }
   else if (k === 'f' || k === 'F') { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen && document.documentElement.requestFullscreen(); }
   else if (k === 'r' || k === 'R') { shock(); refresh('manual'); }
   else if (k === 'w' || k === 'W') { if (S.mode === 3) { S.pulse7 = !S.pulse7; refresh('manual'); renderLegend(); } }

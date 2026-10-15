@@ -4,6 +4,7 @@ import { feed, hm, hms, params } from './dom.ts';
 import type { FeedLine, FeedRow } from './dom.ts';
 import { data } from './data.ts';
 import type { SessionDetail, SessionSummary } from '../../src/types.ts';
+import { agentIngest } from './agents.ts';
 
 /* ============================================================ terminal feed (live agent log, bottom-left) */
 export const FEED_MAX = 200;
@@ -38,6 +39,7 @@ export function feedHistory() {
 }
 export const feedActive = (s: SessionSummary) => !!(s.isActive || feed.calls.has(s.id) && feed.ag.size && [...feed.ag.keys()].some((k) => k.startsWith(s.id + ':')));
 export function feedIngest(s: SessionSummary, d: SessionDetail) { // new lines from a session detail (active sessions only), diffed against what we saw before
+  agentIngest(s, d);
   const now = Date.now(), proj = base(s.cwd); const agName = new Map(); for (const a of d.agents || []) agName.set(a.id, a.type || 'agent');
   for (const a of d.agents || []) {
     const key = s.id + ':' + a.id, prev = feed.ag.get(key), tok = a.tokens ? a.tokens.total || 0 : 0, model = shortModel((a.models || [])[0]), ty = a.type || 'agent', desc = trunc(a.description, 70), meta = `${ty} · ${fmtCost(a.cost)} · ${fmtTok(tok)}`, ts = Date.parse(a.last) || now;

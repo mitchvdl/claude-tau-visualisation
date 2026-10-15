@@ -1,4 +1,5 @@
-import { S, saved } from './shared.ts';
+import { CFG, S, saved } from './shared.ts';
+import { openSettings } from './settings.ts';
 import { clamp } from './util.ts';
 import { $, hudEls, params } from './dom.ts';
 import { PALETTES, pal, palIndexOf } from './palettes.ts';
@@ -38,11 +39,11 @@ export function frame(ms: number) {
   requestAnimationFrame(frame);
   if (document.hidden) { last = 0; return; }
   idle = (performance.now() - S.lastActivity > 90000 && view.act < 0.08);
-  const fps = reduced || idle ? 30 : 60; if (ms - lastRender < 1000 / fps - 3) return; lastRender = ms;
+  const fps = reduced || idle ? Math.min(30, CFG.fps) : CFG.fps; if (ms - lastRender < 1000 / fps - 3) return; lastRender = ms;
   const now = ms / 1000; const dt = last ? Math.min(DTMAX, now - last) : 0.016; last = now;
-  const adt = S.frozen ? 0 : dt * motion; S.T += adt;
+  const adt = S.frozen ? 0 : dt * motion * CFG.motion; S.T += adt;
   S.curAdt = adt; update(dt, adt); syncScene(now);
-  bloom.strength += ((BLOOM.base * (reduced || idle ? 0.6 : 1) * (0.92 + 0.25 * view.act) * (1 + 0.4 * view.ex)) - bloom.strength) * 0.1; bloom.radius = BLOOM.radius; bloom.threshold = BLOOM.thr;
+  bloom.strength += ((BLOOM.base * CFG.bloom * (reduced || idle ? 0.6 : 1) * (0.92 + 0.25 * view.act) * (1 + 0.4 * view.ex)) - bloom.strength) * 0.1; bloom.radius = BLOOM.radius; bloom.threshold = BLOOM.thr;
   finish.uniforms.uTime.value = S.T;
   scene.updateMatrixWorld(); flushLabels(); syncWaits();
   composer.render(dt);
@@ -56,6 +57,7 @@ if (!params.has('pal') && saved.pal) { S.palIdx = palIndexOf(saved.pal); hudEls.
 if (params.has('pal')) { S.palIdx = palIndexOf(params.get('pal')); hudEls.pal.textContent = PALETTES[S.palIdx].name; Object.assign(pal, JSON.parse(JSON.stringify(PALETTES[S.palIdx]))); }
 if (params.get('sel')) S.sel = +params.get('sel') || 0;
 if (params.get('help') === '1') toggleHelp(true);
+if (params.get('settings') === '1') openSettings(true);
 if (params.has('phase')) { recv.frozen = recv.on = true; recv.amp = 1; recv.peak = 1; recv.dur = 9; recv.phase = clamp(+params.get('phase') || 0, 0, 1); genBurst({}); }
 else if (params.get('demo') === 'receive') setTimeout(() => triggerReceive(1, {}), 2500);
 if (params.has('zoom')) S.zoom = S.zoomCur = +params.get('zoom') || 1;

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { H, S } from './shared.ts';
+import { CFG, H, S } from './shared.ts';
 import { TAU, clamp, ease, fmtCost, fmtTok, hash, lerp, lin, mix, shortModel } from './util.ts';
 import { setC } from './dom.ts';
 import { PALETTES, PAL_KEYS, modelColor, pal, spectrumAt } from './palettes.ts';
@@ -25,7 +25,7 @@ export function update(dt: number, adt: number) {
   const k = 1 - Math.exp(-dt / 0.22);
   for (let m = 0; m < 5; m++) mw[m] += ((m === S.mode ? 1 : 0) - mw[m]) * k;
   S.zoomCur += (S.zoom - S.zoomCur) * (1 - Math.exp(-dt / 0.15));
-  const P = PALETTES[S.palIdx].name === 'SPECTRUM' ? spectrumAt(S.T) : PALETTES[S.palIdx], kp = 1 - Math.exp(-dt / 0.25);
+  S.hue = (S.hue + dt / Math.max(5, CFG.spectrumPeriod)) % 1; const P = PALETTES[S.palIdx].name === 'SPECTRUM' ? spectrumAt(S.hue) : PALETTES[S.palIdx], kp = 1 - Math.exp(-dt / 0.25);
   for (const key of PAL_KEYS) for (let i = 0; i < 3; i++) pal[key][i] += (P[key][i] - pal[key][i]) * kp;
   pal.grain += (P.grain - pal.grain) * kp;
   { const tb = S.palIdx === 1 ? [255, 255, 255] : S.palIdx === 2 ? [190, 255, 225] : [170, 238, 255]; for (let i = 0; i < 3; i++) beac[i] += (tb[i] - beac[i]) * kp; document.documentElement.style.setProperty('--bc', beac.map(Math.round).join(',')); }
@@ -64,7 +64,7 @@ export function update(dt: number, adt: number) {
   for (let i = ghosts.length - 1; i >= 0; i--) { const g = ghosts[i]; g.alpha -= dt * 1.2; g.rot += g.dir * 0.05 * adt; if (g.alpha <= 0.01) { killRingObj(g); ghosts.splice(i, 1); } }
   // camera: lissajous drift + mouse parallax + zoom
   const ms = mouse as MouseSmooth; ms.sx = (ms.sx || 0) + (mouse.nx - (ms.sx || 0)) * (1 - Math.exp(-dt / 0.35)); ms.sy = (ms.sy || 0) + (mouse.ny - (ms.sy || 0)) * (1 - Math.exp(-dt / 0.35));
-  S.camX = Math.sin(S.T * 0.11) * 0.10 * motion + ms.sx * 0.12; S.camY = Math.cos(S.T * 0.083) * 0.06 * motion + ms.sy * 0.07;
+  S.camX = Math.sin(S.T * 0.11) * 0.10 * motion * CFG.camDrift + ms.sx * 0.12; S.camY = Math.cos(S.T * 0.083) * 0.06 * motion * CFG.camDrift + ms.sy * 0.07;
   const aspect = G.W / G.H, needH = Math.max(1.8, 2.0 / aspect); G.camD = needH / 2 / FOV_T / S.zoomCur;
   camera.position.set(S.camX, S.camY, G.camD); camera.lookAt(0, 0, 0); camera.updateMatrixWorld();
   G.pxu = G.H / (2 * G.camD * FOV_T); U.uPx.value = (G.H * G.dpr) / (2 * FOV_T);
@@ -99,9 +99,9 @@ export function syncScene(now: number) {
   });
   sparks.forEach((m, e) => { const A = vo[e], B = vo[(e + 1) % 3]; const t = (S.T * 0.05 + e / 3) % 1, t2 = Math.min(1, t + 0.05); setSeg(m, new THREE.Vector3().lerpVectors(A, B, t), new THREE.Vector3().lerpVectors(A, B, t2)); m.scale.x = m.scale.z = 0.006; m.position.z += 0.002; });
   // pupil / plasma
-  const breath = Math.sin(S.T * 0.9) * 0.09 * (1 - act * 0.4);
+  const breath = Math.sin(S.T * 0.9) * 0.09 * CFG.breath * (1 - act * 0.4);
   const rp = 0.07 * (0.7 + 0.3 * cs) * (1 + breath + act * 0.14); view.pupil = rp;
-  plasmaMat.uniforms.uR0.value = 0.46 * (0.55 + 0.45 * cs) * (1 + 0.025 * Math.sin(S.T * 0.9)); plasmaMat.uniforms.uPupil.value = rp; plasmaMat.uniforms.uFiber.value = view.fiberA;
+  plasmaMat.uniforms.uR0.value = 0.46 * (0.55 + 0.45 * cs) * (1 + 0.025 * CFG.breath * Math.sin(S.T * 0.9)); plasmaMat.uniforms.uPupil.value = rp; plasmaMat.uniforms.uFiber.value = view.fiberA;
   pupilMesh.scale.setScalar(rp * 1.01); rim.scale.setScalar(rp * 1.04); glint.scale.setScalar(rp * 1.04);
   setC(rimMat, lin(mix(pal.core, tint, 0.3), (0.9 + 1.1 * Math.min(act, 0.42)) * S.flick)); setC(glintMat, lin(mix(pal.core, Hh, 0.3), 1.2)); voidMesh.scale.setScalar(rp * 2.1);
   // shock waves
@@ -123,7 +123,7 @@ export function syncScene(now: number) {
     clockStripes.push({ x: Math.cos(th) * (dR + len / 2), y: Math.sin(th) * (dR + len / 2), str: `${String(c.hour).padStart(2, '0')}:00–${String((c.hour + 1) % 24).padStart(2, '0')}:00 · ${Math.round(c.calls)} calls · ${fmtCost(c.cost)}` });
   });
   hourTicks.instanceMatrix.needsUpdate = true; hourTicks.instanceColor.needsUpdate = true;
-  setC(hourCap.material, lin(Hh, 3.0)); setC(hourLine.material, lin(pal.core, 0.35)); minuteTicks.scale.setScalar(dR - 0.002 + 0.003 * Math.sin(S.T * 0.9 - 0.9)); setC(mats.min, lin(pal.core, 0.22));
+  setC(hourCap.material, lin(Hh, 3.0)); setC(hourLine.material, lin(pal.core, 0.35)); minuteTicks.scale.setScalar(dR - 0.002 + 0.003 * CFG.breath * Math.sin(S.T * 0.9 - 0.9)); setC(mats.min, lin(pal.core, 0.22));
   dialLine.scale.setScalar(dR - 0.002);
   { const tm = Math.PI / 2 - (fm / 60) * TAU, mr = dR - 0.002 - 0.022; minuteHand.position.set(Math.cos(tm) * mr, Math.sin(tm) * mr, 0.002); minuteHand.rotation.set(0, 0, tm - Math.PI / 2); minuteHand.scale.set(0.0065, 0.044, 0.005); setC(minuteHand.material, lin(Hh, 4.2));
     const th = Math.PI / 2 - (fs / 60) * TAU, rr = dR - 0.002; clockState.x = Math.cos(th) * rr; clockState.y = Math.sin(th) * rr; clockState.str = String(curH).padStart(2, '0') + ':' + String(nd.getMinutes()).padStart(2, '0') + ':' + String(nd.getSeconds()).padStart(2, '0');
@@ -135,7 +135,7 @@ export function syncScene(now: number) {
   const nR = S.rings.length; let saN = 0; const sa = saGeo.attributes.position.array, sc = saGeo.attributes.aC.array; const s1 = ease(clamp(mw[1], 0, 1));
   const doRing = (r, i, ghost) => {
     const t = nR > 1 ? Math.min(1, i / (nR - 1)) : 0;
-    r.rect = !ghost && t >= 0.3; // outer memory rings: many small rectangular blocks instead of ovals
+    r.rect = !ghost && t >= CFG.rectFrom; // outer memory rings: many small rectangular blocks instead of ovals
     if (!r.obj || r.objN !== r.nSeg || (!ghost && r.objRect !== r.rect)) buildRingObj(r);
     const u = r.obj.material.uniforms; const breathR = Math.sin(S.T * 0.9 - i * 0.3); // ring breathing, slight phase lag per ring
     let col = mix(mix(pal.core, Hh, 0.1 * (1 - t)), pal.dim, t * 0.7); col = mix(col, view.tint, 0.18 * (1 - t));
@@ -144,7 +144,7 @@ export function syncScene(now: number) {
     const selv = clamp(r.selK * 0.4 + r.hovK * 0.35, 0, 1);
     const span = Math.min(r.span, TAU);
     u.uColor.value.set(...lin(col, 0.9)); u.uAlpha.value = clamp(r.alpha, 0, 1); u.uInt.value = 0.7 * (0.55 + A * 0.7) + r.selK * 0.9; u.uSel.value = selv;
-    u.uR.value = r.r * (1 + 0.012 * breathR); u.uTh.value = Math.max(0.0045, r.th * (span > TAU - 0.05 ? (r.rect ? 0.85 : 1.25) : 1)) * (1 + r.selK * 0.35 + r.waitK * 0.4 + 0.06 * breathR); u.uBlk.value = r.rect ? u.uTh.value * 0.45 : 0; u.uA0.value = r.a0; u.uSpan.value = span; u.uRot.value = r.rot * r.rotW; u.uK.value = span > TAU - 0.05 ? 1 : clamp(span / TAU, 0.22, 1);
+    u.uR.value = r.r * (1 + 0.012 * CFG.breath * breathR); u.uTh.value = Math.max(0.0045, r.th * (span > TAU - 0.05 ? (r.rect ? 0.85 : 1.25) : 1)) * (1 + r.selK * 0.35 + r.waitK * 0.4 + 0.06 * CFG.breath * breathR); u.uBlk.value = r.rect ? u.uTh.value * CFG.blockW : 0; u.uA0.value = r.a0; u.uSpan.value = span; u.uRot.value = r.rot * r.rotW; u.uK.value = span > TAU - 0.05 ? 1 : clamp(span / TAU, 0.22, 1);
     // issues: error = hard red + irregular glitch/blink, warn = slow amber-red pulse
     const ek = r.errK || 0, wk = r.warnK || 0;
     if (ek > 0.01) { const burst = hash(Math.floor(S.T * 0.9), r.seed * 0.01) > 0.62; const slot = Math.floor(S.T * (burst ? 19 : 2.6)); const h = hash(slot, r.seed * 0.01 + 3); u.uBlink.value = lerp(1, h < (burst ? 0.5 : 0.1) ? 0.1 : 1.35, ek); u.uDrop.value = burst ? 0.62 : 0.14; u.uJit.value = burst && h < 0.35 ? ek : 0; }

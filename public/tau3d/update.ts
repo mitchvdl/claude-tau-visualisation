@@ -6,7 +6,7 @@ import { PALETTES, PAL_KEYS, modelColor, pal } from './palettes.ts';
 import { clockHours, data } from './data.ts';
 import { envE, envW, ghosts, motion, mouse, mw, recv, shocks, view } from './state.ts';
 import { FOV_T, U, camera, core, frameG, frames, gauges, mats, neon, setSeg, sparks, world } from './scene.ts';
-import { TRAIL, clockCore, clockDot, clockState, clockStripes, dialLine, glint, glintMat, hourCap, hourLine, hourMat, hourTicks, minuteTicks, plasmaMat, pupilMesh, rim, rimMat, shockMat, trailGeo, voidMesh } from './core.ts';
+import { TRAIL, clockCore, minuteHand, clockDot, clockState, clockStripes, dialLine, glint, glintMat, hourCap, hourLine, hourMat, hourTicks, minuteTicks, plasmaMat, pupilMesh, rim, rimMat, shockMat, trailGeo, voidMesh } from './core.ts';
 import { buildRingObj, killRingObj } from './ringmesh.ts';
 import { MAXSA, NN, addLineMat, mdl, mdlNames, modelsG, nPulseGeo, needleGeo, neuralG, nodeNames, nodes, pulseG, pulseGuideMat, pulseState, saGeo, syncExtras, syncWeb } from './extras.ts';
 import { G, finish } from './post.ts';
@@ -73,6 +73,7 @@ export function update(dt: number, adt: number) {
 }
 
 export const beac = [170, 238, 255];
+const stripeOff: number[] = new Array(12).fill(0.5); let stripeH = -1;
 export function syncScene(now: number) {
   const act = Math.max(view.act, 0.8 * view.ex), cs = view.cs;
   S.flick = 0.93 + 0.05 * Math.sin(S.T * 23.1) * Math.sin(S.T * 7.3) + 0.03 * Math.sin(S.T * 3.1) - (Math.sin(S.T * 0.7) > 0.985 ? 0.25 : 0);
@@ -108,11 +109,14 @@ export function syncScene(now: number) {
   for (let i = shocks.length - 1; i >= 0; i--) if ((nowS - shocks[i]) / 2.4 > 1) shocks.splice(i, 1);
   for (let i = 0; i < 5; i++) arr[i] = i < shocks.length ? (nowS - shocks[i]) / 2.4 : 2; shockMat.uniforms.uPupil.value = rp;
   // hour ticks + clock
-  const dR = view.dialR, nd = new Date(), curH = nd.getHours(); const fh = nd.getMinutes() + nd.getSeconds() / 60 + nd.getMilliseconds() / 6e4; // minute hand position (0..60)
+  const dR = view.dialR, nd = new Date(), curH = nd.getHours(); const fm = nd.getMinutes() + nd.getSeconds() / 60, fs = nd.getSeconds() + nd.getMilliseconds() / 1000; // minute position (0..60), seconds position (0..60)
+  // analog hour hand: the current hour's stripe glides through its hour wedge, finished hours rest mid-wedge (eased when the hour rolls over)
+  if (stripeH !== curH) { if (stripeH >= 0) stripeOff.unshift(stripeOff.pop() as number); stripeOff[0] = 0; stripeH = curH; }
+  const ek = 1 - Math.exp(-Math.max(S.curAdt, 0.016) / 0.5); stripeOff.forEach((o, k) => { stripeOff[k] = o + ((k === 0 ? fm / 60 : 0.5) - o) * ek; });
   const ch = clockHours(); let mxh = 1; for (const c of ch) if (c.calls > mxh) mxh = c.calls; clockStripes.length = 0;
   setC(hourMat, lin(pal.core, 2.0 * S.flick)); const cH = lin(Hh, 3.2), cC = lin(pal.core, 2.0);
   ch.forEach((c, i) => {
-    const th = Math.PI / 2 - (c.pos / 12) * TAU, v = c.calls / mxh, cur = c.k === 0; let len = 0.01 + 0.04 * Math.sqrt(v); if (cur) { len = (0.045 + 0.04 * Math.sqrt(v)) * (1 + 0.05 * Math.sin(S.T * 4)); hourCap.position.set(Math.cos(th) * (dR + len + 0.004), Math.sin(th) * (dR + len + 0.004), 0.003); const la = hourLine.geometry.attributes.position.array, r0 = view.pupil * 1.5; la[0] = Math.cos(th) * r0; la[1] = Math.sin(th) * r0; la[3] = Math.cos(th) * dR; la[4] = Math.sin(th) * dR; hourLine.geometry.attributes.position.needsUpdate = true; }
+    const th = Math.PI / 2 - ((c.pos + stripeOff[c.k]) / 12) * TAU, v = c.calls / mxh, cur = c.k === 0; let len = 0.01 + 0.04 * Math.sqrt(v); if (cur) { len = (0.045 + 0.04 * Math.sqrt(v)) * (1 + 0.05 * Math.sin(S.T * 4)); hourCap.position.set(Math.cos(th) * (dR + len + 0.004), Math.sin(th) * (dR + len + 0.004), 0.003); const la = hourLine.geometry.attributes.position.array, r0 = view.pupil * 1.5; la[0] = Math.cos(th) * r0; la[1] = Math.sin(th) * r0; la[3] = Math.cos(th) * dR; la[4] = Math.sin(th) * dR; hourLine.geometry.attributes.position.needsUpdate = true; }
     _o.position.set(Math.cos(th) * (dR + len / 2), Math.sin(th) * (dR + len / 2), 0); _o.rotation.set(0, 0, th - Math.PI / 2); _o.scale.set(cur ? 0.0075 : 0.0038, len, 0.005); _o.updateMatrix(); hourTicks.setMatrixAt(i, _o.matrix);
     const b = cur ? 1 : 0.28 + 0.72 * Math.pow(1 - c.k / 12, 1.5); // recent = brighter, fading toward 12h ago
     _c.setRGB((cur ? cH[0] / cC[0] : 1) * b, (cur ? cH[1] / cC[1] : 1) * b, (cur ? cH[2] / cC[2] : 1) * b); hourTicks.setColorAt(i, _c);
@@ -121,9 +125,10 @@ export function syncScene(now: number) {
   hourTicks.instanceMatrix.needsUpdate = true; hourTicks.instanceColor.needsUpdate = true;
   setC(hourCap.material, lin(Hh, 3.0)); setC(hourLine.material, lin(pal.core, 0.35)); minuteTicks.scale.setScalar(dR - 0.002 + 0.003 * Math.sin(S.T * 0.9 - 0.9)); setC(mats.min, lin(pal.core, 0.22));
   dialLine.scale.setScalar(dR - 0.002);
-  { const th = Math.PI / 2 - (fh / 60) * TAU, rr = dR - 0.002; clockState.x = Math.cos(th) * rr; clockState.y = Math.sin(th) * rr; clockState.str = String(curH).padStart(2, '0') + ':' + String(nd.getMinutes()).padStart(2, '0');
+  { const tm = Math.PI / 2 - (fm / 60) * TAU, mr = dR - 0.002 - 0.022; minuteHand.position.set(Math.cos(tm) * mr, Math.sin(tm) * mr, 0.002); minuteHand.rotation.set(0, 0, tm - Math.PI / 2); minuteHand.scale.set(0.0065, 0.044, 0.005); setC(minuteHand.material, lin(Hh, 4.2));
+    const th = Math.PI / 2 - (fs / 60) * TAU, rr = dR - 0.002; clockState.x = Math.cos(th) * rr; clockState.y = Math.sin(th) * rr; clockState.str = String(curH).padStart(2, '0') + ':' + String(nd.getMinutes()).padStart(2, '0') + ':' + String(nd.getSeconds()).padStart(2, '0');
     const pa = trailGeo.attributes.position.array, ca = trailGeo.attributes.color.array, tc = lin(Hh, 1.5);
-    for (let i = 0; i < TRAIL; i++) { const a = th + i * 0.012, f = Math.pow(1 - i / TRAIL, 1.6); pa[i * 3] = Math.cos(a) * rr; pa[i * 3 + 1] = Math.sin(a) * rr; pa[i * 3 + 2] = 0.002; ca[i * 3] = tc[0] * f; ca[i * 3 + 1] = tc[1] * f; ca[i * 3 + 2] = tc[2] * f; }
+    for (let i = 0; i < TRAIL; i++) { const a = th + i * 0.02, f = Math.pow(1 - i / TRAIL, 1.6); pa[i * 3] = Math.cos(a) * rr; pa[i * 3 + 1] = Math.sin(a) * rr; pa[i * 3 + 2] = 0.002; ca[i * 3] = tc[0] * f; ca[i * 3 + 1] = tc[1] * f; ca[i * 3 + 2] = tc[2] * f; }
     trailGeo.attributes.position.needsUpdate = trailGeo.attributes.color.needsUpdate = true;
     clockDot.position.set(clockState.x, clockState.y, 0.004); clockCore.position.copy(clockDot.position); setC(clockDot.material, lin(Hh, 0.55)); setC(clockCore.material, lin([255, 245, 225], 1.6)); }
   // rings

@@ -70,3 +70,5 @@ export const spriteMat = (k = 1) => new THREE.SpriteMaterial({ map: glowTex, col
 export const clockDot = new THREE.Sprite(spriteMat(1)); clockDot.scale.setScalar(0.05); clockDot.renderOrder = 12; core.add(clockDot);
 export const clockCore = new THREE.Mesh(sphG, hdr(1)); clockCore.scale.setScalar(0.0045); core.add(clockCore);
 export const clockState = { x: 0, y: 0, str: '' };
+// minute hand: a short stripe just inside the dial (hour = long stripe outside, seconds = the dot with the comet tail)
+export const minuteHand = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), hdr(1)); minuteHand.renderOrder = 10; core.add(minuteHand);

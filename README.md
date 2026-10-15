@@ -30,7 +30,7 @@ The dashboard header has a **Stats | 3D** switch. Press `G` on the dashboard to 
 
 `1-5` / `Tab` mode (Core, Memory, Neural, Pulse, Models), `←/→` select a session ring, `Enter` details, `I` cycle issues, `X` simulate a data burst, `L` feed window, `Space` freeze, `H` HUD, `V` voice line, `C` palette (tau / ice / violet / navy), `F` fullscreen, `R` refresh, `Esc` close. Mouse: hover/click rings, wheel zooms.
 
-The core and rings breathe slowly; the outer rings are built from small rectangular blocks, the inner ones from rounded segments. The 3D view uses three.js 0.170.0 (vendored in `public/vendor/three/`, MIT), no CDN at runtime.
+The outer dial is an analog clock: the dot with the comet tail is the seconds (one lap per minute), the short bright stripe inside the dial is the minutes, and the long stripe outside is the hour, gliding through its hour wedge (stripe length = calls in that hour; the other 11 stripes are the previous hours). Hover the dot for hh:mm:ss. The core and rings breathe slowly; the outer rings are built from small rectangular blocks, the inner ones from rounded segments. The 3D view uses three.js 0.170.0 (vendored in `public/vendor/three/`, MIT), no CDN at runtime.
 
 ## What it reads
 

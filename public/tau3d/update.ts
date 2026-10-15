@@ -149,7 +149,7 @@ export function syncScene(now: number) {
     const ek = r.errK || 0, wk = r.warnK || 0;
     if (ek > 0.01) { const burst = hash(Math.floor(S.T * 0.9), r.seed * 0.01) > 0.62; const slot = Math.floor(S.T * (burst ? 19 : 2.6)); const h = hash(slot, r.seed * 0.01 + 3); u.uBlink.value = lerp(1, h < (burst ? 0.5 : 0.1) ? 0.1 : 1.35, ek); u.uDrop.value = burst ? 0.62 : 0.14; u.uJit.value = burst && h < 0.35 ? ek : 0; }
     else { u.uBlink.value = 1; u.uJit.value = 0; u.uDrop.value = 0; }
-    u.uLoss.value = S.sig * CFG.signalLoss; u.uWait.value = r.waitK; u.uBeacon.value.set(...lin(beac, 1)); if (r.waitK > 0.01) u.uInt.value *= 1 + 0.9 * S.hb * r.waitK;
+    u.uLoss.value = S.sig * CFG.signalLoss * (0.35 + 0.65 * S.jit); u.uWait.value = r.waitK; u.uBeacon.value.set(...lin(beac, 1)); if (r.waitK > 0.01) u.uInt.value *= 1 + 0.9 * S.hb * r.waitK;
     u.uErr.value = ek; u.uWarn.value = wk * (0.35 + 0.65 * (0.5 + 0.5 * Math.sin(S.T * 1.7 + i)));
     const o = r.obj, tk = r.rect ? 0 : 1; o.rotation.set(r.tilt[0] * (0.7 + 0.3 * Math.sin(S.T * 0.13 + r.tilt[2])) * (1 - 0.8 * s1) * tk, r.tilt[1] * (0.7 + 0.3 * Math.cos(S.T * 0.11 + r.tilt[2])) * (1 - 0.8 * s1) * tk, 0); // block rings stay flat and concentric o.position.z = r.rect ? 0 : s1 * (i * 0.014 - 0.1); o.updateMatrix();
     o.visible = r.alpha > 0.02;

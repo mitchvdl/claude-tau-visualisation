@@ -42,13 +42,13 @@ export function frame(ms: number) {
   idle = (performance.now() - S.lastActivity > 90000 && view.act < 0.08);
   const fps = reduced || idle || S.standby > 0.5 ? Math.min(30, CFG.fps) : CFG.fps; if (ms - lastRender < 1000 / fps - 3) return; lastRender = ms;
   const now = ms / 1000; const dt = last ? Math.min(DTMAX, now - last) : 0.016; last = now;
-  tickSignal(dt); const lossK = S.sig * CFG.signalLoss;
+  tickSignal(dt); const lossK = S.sig * CFG.signalLoss * S.jit; // S.jit = bursty envelope, so effects come and go irregularly
   let adt = S.frozen ? 0 : dt * motion * CFG.motion;
   if (lossK > 0.3) { const np = performance.now(); if (np < S.stutterUntil) adt = 0; else if (Math.random() < dt * lossK * 0.9) S.stutterUntil = np + 70 + Math.random() * 200; } // dropped-frame stutter
   S.T += adt; S.Td += adt * (1 - S.freeze);
   S.curAdt = adt; update(dt, adt); syncScene(now);
   bloom.strength += ((BLOOM.base * CFG.bloom * (reduced || idle ? 0.6 : 1) * (0.92 + 0.25 * view.act) * (1 + 0.4 * view.ex) * (1 - 0.4 * S.standby)) - bloom.strength) * 0.1; bloom.radius = BLOOM.radius; bloom.threshold = BLOOM.thr;
-  finish.uniforms.uTime.value = S.T; finish.uniforms.uLoss.value = lossK; finish.uniforms.uLossT.value = performance.now() / 1000; finish.uniforms.uFlash.value = S.flash * (CFG.signalLoss > 0 ? 1 : 0); finish.uniforms.uDim.value = 0.35 * S.standby * Math.min(1, CFG.signalLoss);
+  finish.uniforms.uTime.value = S.T; finish.uniforms.uLoss.value = lossK; finish.uniforms.uLossT.value = S.lt; finish.uniforms.uFlash.value = S.flash * (CFG.signalLoss > 0 ? 1 : 0); finish.uniforms.uDim.value = 0.35 * S.standby * Math.min(1, CFG.signalLoss);
   scene.updateMatrixWorld(); flushLabels(); syncWaits();
   composer.render(dt);
 }

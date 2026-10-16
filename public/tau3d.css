@@ -143,3 +143,21 @@ a.back { color: inherit; }
     var(--b) 0 100% / 26px 2px no-repeat, var(--b) 0 100% / 2px 26px no-repeat, var(--b) 100% 100% / 26px 2px no-repeat, var(--b) 100% 100% / 2px 26px no-repeat; }
 #sigframe.on { opacity: .85; }
 #hud.hdip .hc { opacity: .28; }
+
+/* ---- boot screen ---- */
+#boot { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; justify-content: center; padding: 0 max(8vw, 24px); background: rgba(2,1,3,.97); opacity: 0; pointer-events: none; transition: opacity .7s ease; }
+#boot.on { opacity: 1; pointer-events: auto; cursor: pointer; }
+#boot.relink { background: rgba(2,1,3,.82); }
+#boot::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(0,0,0,.3) 0 1px, transparent 1px 3px); }
+#bootText { margin: 0; font: 13px/1.75 var(--mono); letter-spacing: .08em; color: rgb(var(--c)); text-shadow: 0 0 8px rgba(var(--f), .55); white-space: pre-wrap; }
+#bootText .h { color: rgb(var(--f)); font-size: 16px; letter-spacing: .32em; margin-bottom: 6px; }
+#bootText .dim { opacity: .55; } #bootText .ok { margin-top: 10px; color: rgb(var(--f)); letter-spacing: .28em; animation: bootblink .5s steps(2) infinite; }
+@keyframes bootblink { 50% { opacity: .45; } }
+#boot .bar { margin-top: 22px; width: min(420px, 70vw); height: 2px; background: rgba(var(--f), .2); } #boot .bar i { display: block; height: 100%; width: 0; background: rgb(var(--f)); box-shadow: 0 0 10px rgba(var(--f), .8); transition: width .25s ease; }
+
+/* ---- privacy mode (key P): blur everything that names your work ---- */
+body.privacy #feedBody, body.privacy #agentstack .ap, body.privacy #agentstack .ao, body.privacy #agentstack .sl, body.privacy #agentstack .ad, body.privacy #agentstack .abs .sh i,
+body.privacy #memcard h3, body.privacy #memcard > .kv:nth-child(3) b, body.privacy #detail h3, body.privacy #detail .sub, body.privacy #detail .sid, body.privacy #detail .li,
+body.privacy #tip, body.privacy #wblk, body.privacy #hHome, body.privacy #voice.priv { filter: blur(5px); user-select: none; }
+body.privacy #hud .hc.bl .row:first-child b::after { content: ""; }
+body.privacy #agentstack[data-demo] .ap, body.privacy #agentstack[data-demo] .ao, body.privacy #agentstack[data-demo] .sl, body.privacy #agentstack[data-demo] .ad, body.privacy #agentstack[data-demo] .abs .sh i { filter: none; user-select: auto; }

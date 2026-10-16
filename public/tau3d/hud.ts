@@ -23,7 +23,7 @@ export function renderLegend() {
   const el = $('legend'); el.textContent = ''; if (S.mode !== 3) return; const sr = S.pulse7 && data.series7 ? data.series7 : data.series; if (!sr) return;
   sr.models.forEach((m) => { const d = document.createElement('div'); const i = document.createElement('i'); i.style.color = rgba(modelColor(m), 1); const sp = document.createElement('span'); sp.textContent = shortModel(m); d.append(i, sp); el.append(d); });
 }
-export function say(text: string) { voice.text = text; voice.shown = 0; voice.last = performance.now(); }
+export function say(text: string) { voice.el.classList.toggle('priv', /^Your most recent request|^Session .+ needs you|^Receiving from|\u201c/.test(text)); voice.text = text; voice.shown = 0; voice.last = performance.now(); }
 setInterval(() => { if (voice.shown < voice.text.length) { voice.shown++; voice.el.textContent = voice.text.slice(0, voice.shown); } }, 36);
 export function voiceLines(): string[] {
   const s = data.summary; if (!s) return []; const t: Totals = s.totals || {}, pj = (s.projection || {}) as Partial<ProjectionData>; const L: string[] = [];
@@ -105,7 +105,7 @@ export function drawSpark(cvs: HTMLCanvasElement, calls: CallRec[]) {
   c.fillStyle = rgba(pal.core, 0.8); c.font = '9px monospace'; c.fillText('peak ' + fmtTok(mx), 6, 11);
 }
 
-export const HELP: [string, string][] = [['1 - 5', 'Core / Memory / Neural / Pulse / Models'], ['Tab', 'Cycle modes'], ['← →  (J K)', 'Select previous / next memory'], ['Enter', 'Open memory detail panel'], ['I', 'Cycle memories with issues (opens details)'], ['X', 'Simulate a data burst (Shift+X: small)'], ['L', 'Toggle the terminal feed window'], ['Esc', 'Close panels'], ['Space', 'Freeze / unfreeze motion'], ['H', 'Toggle HUD'], ['V', 'Toggle voice line'], ['C', 'Cycle palette'], ['O', 'Settings panel (look, motion, agent box)'], ['F', 'Fullscreen'], ['R', 'Force refresh'], ['W', 'Pulse: today / 7 days'], ['B / G', 'Back to the stats dashboard'], ['Mouse', 'Hover = inspect, click = select, wheel = zoom'], ['?', 'This overlay']];
+export const HELP: [string, string][] = [['1 - 5', 'Core / Memory / Neural / Pulse / Models'], ['Tab', 'Cycle modes'], ['← →  (J K)', 'Select previous / next memory'], ['Enter', 'Open memory detail panel'], ['I', 'Cycle memories with issues (opens details)'], ['X', 'Simulate a data burst (Shift+X: small)'], ['L', 'Toggle the terminal feed window'], ['Esc', 'Close panels'], ['Space', 'Freeze / unfreeze motion'], ['H', 'Toggle HUD'], ['V', 'Toggle voice line'], ['C', 'Cycle palette'], ['O', 'Settings panel (look, motion, agent box)'], ['P', 'Privacy mode: blur titles, prompts, paths and agent text'], ['F', 'Fullscreen'], ['R', 'Force refresh'], ['W', 'Pulse: today / 7 days'], ['B / G', 'Back to the stats dashboard'], ['Mouse', 'Hover = inspect, click = select, wheel = zoom'], ['?', 'This overlay']];
 export function toggleHelp(on?: boolean) {
   S.helpOpen = on === undefined ? !S.helpOpen : on; const el = $('help'); el.hidden = !S.helpOpen; if (!S.helpOpen) return; el.textContent = '';
   const b = document.createElement('div'); b.className = 'box panel'; const h = document.createElement('h2'); h.textContent = 'TAU 3D // CONTROLS'; b.append(h); HELP.forEach(([k, v]) => b.append(kv(k, v))); el.append(b);

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { S, saveSettings } from './shared.ts';
+import { S, saveSettings, setPrivacy } from './shared.ts';
 import { openSettings, syncSettings } from './settings.ts';
 import { TAU, clamp } from './util.ts';
 import { $, hudEls } from './dom.ts';
@@ -35,6 +35,7 @@ addEventListener('keydown', (e) => {
   else if (k === 'x' || k === 'X') triggerReceive(k === 'X' ? 0.2 : 1, {});
   else if (k === 'Escape') { closePanels(); openSettings(false); }
   else if (k === 'o' || k === 'O' || k === ',') openSettings();
+  else if (k === 'p' || k === 'P') { setPrivacy(); syncSettings(); }
   else if (k === ' ') { e.preventDefault(); S.frozen = !S.frozen; }
   else if (k === 'h' || k === 'H') { S.hudOn = !S.hudOn; $('hud').classList.toggle('off', !S.hudOn); }
   else if (k === 'v' || k === 'V') { S.voiceOn = !S.voiceOn; $('voice').classList.toggle('off', !S.voiceOn); }

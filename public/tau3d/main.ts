@@ -1,6 +1,7 @@
 import { CFG, S, saved } from './shared.ts';
 import { openSettings } from './settings.ts';
 import { tickSignal } from './signal.ts';
+import './boot.ts';
 import { clamp } from './util.ts';
 import { $, hudEls, params } from './dom.ts';
 import { PALETTES, pal, palIndexOf } from './palettes.ts';

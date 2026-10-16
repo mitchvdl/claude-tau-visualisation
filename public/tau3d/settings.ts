@@ -1,6 +1,6 @@
 // Settings panel (key O): tunable look / motion / interface options. Built lazily on first open from one declarative item list.
 // Every change applies immediately and is saved to localStorage (saveSettings in shared.ts).
-import { CFG, CFG_DEFAULTS, S, saveSettings } from './shared.ts';
+import { CFG, CFG_DEFAULTS, S, saveSettings, setPrivacy } from './shared.ts';
 import type { CfgKey } from './shared.ts';
 import { $, feed, hudEls } from './dom.ts';
 import { feedToggle } from './feed.ts';
@@ -49,7 +49,10 @@ const ITEMS: Item[] = [
   { group: 'Interface', label: 'HUD', kind: 'toggle', get: () => S.hudOn, set: (v) => { S.hudOn = v; $('hud')?.classList.toggle('off', !v); } },
   { group: 'Interface', label: 'Voice line', kind: 'toggle', get: () => S.voiceOn, set: (v) => { S.voiceOn = v; $('voice')?.classList.toggle('off', !v); } },
   { group: 'Interface', label: 'Terminal feed', kind: 'toggle', get: () => feed.on, set: (v) => { feedToggle(v); } },
+  { group: 'Interface', label: 'Privacy mode (P)', kind: 'toggle', get: () => S.privacy, set: (v) => { setPrivacy(v); } },
+  bool('Interface', 'Boot screen', 'bootScreen', 'start-up sequence on load and after a lost link is restored'),
   bool('Interface', 'Agent box', 'agentBox'),
+  num('Interface', 'Agent boxes (max)', 'agentStack', 1, 6, 1, (v) => String(v), 'newest running agent is the big box, the others stack above it as small boxes'),
   bool('Interface', 'Agent output text', 'agentOut'),
   num('Interface', 'Agent box opacity', 'agentOpacity', 0.2, 1, 0.05, f2),
   num('Interface', 'Agent scroll speed', 'agentSpeed', 0.3, 3, 0.1, (v) => v.toFixed(1) + '×'),

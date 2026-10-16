@@ -1,5 +1,7 @@
 # Settings
 
+![The settings panel](img/settings.jpg)
+
 There are three layers of configuration:
 
 1. **Server** (`.env`): where the data comes from and how often it is rescanned.
@@ -27,7 +29,7 @@ Press **`O`** (or `,`) in the 3D view to open it; **`O`** or **`Esc`** closes it
 
 | Setting | Range | Default | What it does |
 |---|---|---|---|
-| Palette | list | TAU | Colour scheme: TAU, ICE, VIOLET, NAVY, SPECTRUM. `C` cycles it too. |
+| Palette | list | TAU | Colour scheme: TAU, ICE, VIOLET, NAVY, SPECTRUM (slowly fades through all colours, see below). `C` cycles it too. |
 | Spectrum lap (s) | 20–600 | 120 | Seconds for one lap of the colour wheel in the SPECTRUM palette. |
 | Bloom | 0.3–1.8 | 1.0 | Strength of the glow. |
 | Breathing | 0–2 | 1.0 | How much the core and rings pulse slowly; 0 stops it. |
@@ -71,6 +73,9 @@ Each spike setting has an *auto* partner so you can choose which dimension react
 | Voice line | on/off | on | The typed line at the bottom (`V` toggles). |
 | Terminal feed | on/off | on | The `tau://feed` window bottom-left (`L` toggles). |
 | Agent box | on/off | on | Bottom-right box with the newest sub-agent's prompt. |
+| Agent boxes (max) | 1–6 | 4 | How many agent boxes to show: the newest running agent is the big box, the next ones stack above it as smaller boxes with a smaller font. |
+| Boot screen | on/off | on | Terminal-style start-up sequence on load, and a shorter see-through version when a lost link is restored. Any key skips it. |
+| Privacy mode (P) | on/off | off | Blurs session titles, project names and paths, prompts, agent text, the feed, the session id and the home path. Shared with the dashboard. |
 | Agent output text | on/off | on | The drifting output text inside the agent box. |
 | Agent box opacity | 0.2–1 | 0.6 | How faded the agent box is. |
 | Agent scroll speed | 0.3–3× | 1.0× | How fast the output text drifts upward. |
@@ -85,7 +90,27 @@ When the server stops answering (the page re-checks within about 1.5 s of the ev
 | 3–15 s | Ramps to full strength: tearing, RGB split, static, flicker, drained colour, frozen dashed rings, stutter, banner with corner brackets, scrambled HUD digits, corrupted voice line. |
 | > 15 s | The scene dims into a low-power standby (30 fps). |
 
+![Signal loss](img/signal-loss.jpg)
+
 The effect strength scales with *Signal-loss effect*; timing follows *speed* and *jitter*. The clock keeps running because it is local time. On reconnect there is a warm flash. Preview it with `?demo=lost&lostfor=20`.
+
+## Boot screen
+
+![Boot screen](img/boot.jpg)
+
+On load the screen shows a short start-up sequence whose lines fill in with live data (memory location, session count, tokens held, awake agents). When a lost connection comes back, a shorter, see-through version plays ("SIGNAL REACQUIRED ... LINK RESTORED · offline m:ss") followed by a warm flash. Click or press any key to skip. Turn it off with *Boot screen*; `?boot=0` skips it once, `?boot=1` forces it, `?boot=relink` previews the reconnect version. Screenshot runs (`?shot=1`) skip it.
+
+![Reconnect version](img/relink.jpg)
+
+## Privacy mode
+
+Press **`P`** (in either view) or use the *Privacy (P)* button on the dashboard. The blur covers: session titles and tables' Session / Project / Branch columns, prompts, agent descriptions and output text, the terminal feed, the session id and detail panels, tooltips, waiting-for-input callouts, voice lines that quote a title or a prompt, and the home path. Costs, tokens, counts, charts and the clock stay readable, so the view still works as a status display. The flag is stored under `claude-stats-privacy` and shared by the dashboard and the 3D layer. `?privacy=1` or `?privacy=0` overrides it. The copy buttons still copy the real id when clicked.
+
+## SPECTRUM palette
+
+![Spectrum palette](img/spectrum.jpg)
+
+The SPECTRUM palette drifts through the whole hue wheel (triangle, core, dial and background marble together). One lap takes *Spectrum lap (s)* seconds, 120 by default; `?spec=0..1` picks the starting hue.
 
 ## Other things that are remembered
 
@@ -109,14 +134,16 @@ URL parameters win over saved settings and are not saved. Combine them with `&`.
 | `feed=0\|1` | Hide / show the terminal feed. |
 | `zoom=N` | Camera zoom. |
 | `act=0..1` | Force the activity level (also drives auto spike). |
-| `demo=receive\|waiting\|issues\|agent\|lost` | Fake data for screenshots: a data burst, waiting sessions, issue rings, a streaming agent box, a dropped link (`lostfor=SECONDS` sets how long ago). |
+| `demo=receive\|waiting\|issues\|agent\|agents\|lost` | Fake data for screenshots: a data burst, waiting sessions, issue rings, one or four streaming agent boxes, a dropped link (`lostfor=SECONDS` sets how long ago). |
 | `phase=0..1`, `seed=N`, `pattern=shock\|sweep\|tendril\|cluster` | Freeze / reproduce a data burst. |
 | `nosse=1` | Do not open the live event stream (polling only). |
-| `shot=1` | Do not clamp the frame time (for slow headless captures). |
+| `shot=1` | Do not clamp the frame time and skip the boot screen (for slow headless captures). |
+| `boot=0\|1\|relink` | Skip / force / preview the reconnect version of the boot screen. |
+| `privacy=0\|1` | Turn privacy mode off / on for this load (and remember it). |
 
 The dashboard accepts `?theme=auto|dark|light` and `#session/<id>` to open a session, and `#3d` to open the 3D layer.
 
 ## Keyboard
 
-3D view: `1`–`5` / `Tab` mode, `←` `→` select ring, `Enter` details, `I` issues, `X` simulate a burst, `L` feed, `Space` freeze, `H` HUD, `V` voice, `C` palette, `O` settings, `F` fullscreen, `R` refresh, `W` today/7 days (Pulse mode), `G` or `B` back to the dashboard, `?` help.
-Dashboard: `G` opens the 3D view, `Esc` closes the session drawer.
+3D view: `1`–`5` / `Tab` mode, `←` `→` select ring, `Enter` details, `I` issues, `X` simulate a burst, `L` feed, `Space` freeze, `H` HUD, `V` voice, `C` palette, `O` settings, `P` privacy, `F` fullscreen, `R` refresh, `W` today/7 days (Pulse mode), `G` or `B` back to the dashboard, `?` help.
+Dashboard: `G` opens the 3D view, `P` privacy mode, `Esc` closes the session drawer.

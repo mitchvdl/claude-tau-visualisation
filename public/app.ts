@@ -223,7 +223,7 @@ function makeTable<T>(table: HTMLElement, cols: Col<T>[], opts: TableOpts<T>): T
         seen.add(k);
         let r = rows.get(k);
         if (!r) {
-          r = { tds: cols.map((c) => h('td', { class: (c.num ? 'n ' : '') + (c.cls || '') })), tr: null };
+          r = { tds: cols.map((c) => { const td = h('td', { class: (c.num ? 'n ' : '') + (c.cls || '') }); td.dataset.col = c.key; return td; }), tr: null };
           r.tr = h('tr', { class: opts.onClick ? 'click' : '' }, r.tds);
           if (opts.onClick) r.tr.addEventListener('click', () => opts.onClick(r.item));
           rows.set(k, r);
@@ -670,7 +670,7 @@ function copyBtn(label: string, text: string, title: string): HTMLElement {
   return b;
 }
 const resumeCmd = (cwd: string, id: string) => (cwd ? `cd '${cwd.replace(/'/g, `'\\''`)}' && ` : '') + `claude --resume ${id}`;
-function kv(rows: KvRow[]) { return h('dl', { class: 'kv' }, rows.flatMap(([k, v, t]) => [h('dt', { text: k }), h('dd', { text: String(v), title: t || '' })])); }
+function kv(rows: KvRow[]) { return h('dl', { class: 'kv' }, rows.flatMap(([k, v, t]) => [h('dt', { text: k }), h('dd', { text: String(v), title: t || '', class: k === 'Project' || k === 'Branch' ? 'priv' : '' })])); }
 function drawerContent(d: SessionDetail) {
   const rp = d.reported;
   const tk = d.tokens;
@@ -979,8 +979,16 @@ function init() {
   addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeDrawer();
     else if ((e.key === 'g' || e.key === 'G') && !e.metaKey && !e.ctrlKey && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test((e.target as HTMLElement).tagName)) setView3d(true);
+    else if ((e.key === 'p' || e.key === 'P') && !e.metaKey && !e.ctrlKey && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test((e.target as HTMLElement).tagName)) togglePriv();
   });
   // Tau 3D runs in a full-screen iframe on this page (no navigation); the frame is emptied on close so the GPU is freed.
+  // privacy mode (P): blur titles, prompts, paths; the flag is shared with the 3D layer through localStorage
+  const PRIV_KEY = 'claude-stats-privacy';
+  const applyPriv = (on: boolean) => { document.body.classList.toggle('privacy', on); $('privBtn').setAttribute('aria-pressed', String(on)); };
+  const togglePriv = () => { const on = !document.body.classList.contains('privacy'); applyPriv(on); try { localStorage.setItem(PRIV_KEY, on ? '1' : '0'); } catch { /* ignore */ } };
+  { let v = false; try { v = localStorage.getItem(PRIV_KEY) === '1'; } catch { /* ignore */ } if (new URLSearchParams(location.search).has('privacy')) v = new URLSearchParams(location.search).get('privacy') === '1'; applyPriv(v); }
+  $('privBtn').addEventListener('click', togglePriv);
+  addEventListener('storage', (e) => { if (e.key === PRIV_KEY) applyPriv(e.newValue === '1'); });
   const markView = (on: boolean) => document.querySelectorAll('#viewSwitch button').forEach((b) => b.setAttribute('aria-pressed', String((b as HTMLElement).dataset.v === '3d' ? on : !on)));
   const setView3d = (on: boolean) => {
     const box = $('view3d'), fr = $('f3d') as HTMLIFrameElement;

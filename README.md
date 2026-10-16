@@ -2,6 +2,8 @@
 
 A local dashboard for [Claude Code](https://claude.com/claude-code) usage, with an optional 3D "Tau" view of the same data. It shows tokens per model, cache usage, sessions, sub-agents, projects, prompts and estimated cost.
 
+![Tau 3D view](docs/img/core.jpg)
+
 - **Stats dashboard** at `/`: tables, charts, per-session drawer, light/dark theme.
 - **Tau 3D** at `/tau3d.html`: the same data as a breathing neon core. Each ring is a session, the outer dial is a 12-hour clock of calls, and bursts of new activity ripple through the scene.
 
@@ -40,9 +42,13 @@ When the link to the server is lost (it is probed within a couple of seconds of 
 
 The session drawer (dashboard) and the detail panel (3D, `Enter`) show the full session id with **Copy ID** and **Copy resume command** buttons. The latter copies `cd '<project dir>' && claude --resume <id>`.
 
-### Agent box and settings
+### Agent boxes, boot screen, privacy and settings
 
-When a sub-agent is running, a faded box in the bottom-right corner (mirroring the feed) shows the newest agent's type, model, description and the prompt it was given, with its recent output text drifting slowly upward behind a fade. It lingers ~25 s after the agent finishes. `?demo=agent` shows a fake one.
+When sub-agents are running, faded boxes in the bottom-right corner (mirroring the feed) show them: the newest is the big box with its type, model, description, the prompt it was given and its recent output text drifting slowly upward behind a fade; further running agents stack above it as smaller boxes (type, description, latest output line; up to *Agent boxes (max)*, default 4). Finished agents linger ~25 s. `?demo=agents` shows fake ones.
+
+A terminal-style **boot screen** plays on load and again, shorter and see-through, when a lost connection is restored (any key skips it; setting *Boot screen*; `?boot=0` / `?boot=relink`).
+
+**Privacy mode** (`P`, also the *Privacy (P)* button on the dashboard) blurs everything that names your work: session titles, project names and paths, prompts, agent text, the feed, the session id and the home path. Counts, costs and tokens stay readable. The flag is remembered and shared between the dashboard and the 3D view; `?privacy=1` forces it on.
 
 Press `O` (or `,`) for the settings panel (every option is explained in [docs/settings.md](docs/settings.md)): palette, spectrum lap time, bloom, breathing, bar width and where the rectangular bars start, motion speed, camera drift, frame rate, HUD / voice / feed toggles and the agent box (on/off, output text, opacity, scroll speed). Everything is saved in this browser and `Reset to defaults` restores the look.
 

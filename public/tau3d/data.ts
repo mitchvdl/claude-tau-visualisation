@@ -45,7 +45,7 @@ export async function refresh(reason: string): Promise<void> {
   const wasLost = data.lost && !demoLost; data.lost = demoLost; data.lastOk = Date.now();
   H.deriveTargets(); H.updateHud(); H.setLink(); H.renderLegend(); H.issuesChanged(true); H.syncWaitData();
   for (const as of (data.summary.activeSessions || [])) if (as && as.id && as.last) H.queueDetail(as);
-  if (wasLost) { H.say('Signal restored.'); S.flash = 1; }
+  if (wasLost) { H.say('Signal restored.'); S.flash = 1; H.playBoot('relink', (Date.now() - data.lostSince) / 1000); }
   else if (reason === 'update') H.announceChange(prev, data.summary);
   if (reason === 'update' || reason === 'poll') H.receiveFromDelta(prev, data.summary);
   else if (!voice.started) { voice.started = true; H.rotateVoice(true); }

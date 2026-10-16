@@ -9,7 +9,7 @@ export function saveSettings(): void { try { localStorage.setItem(KEY, JSON.stri
 
 // Tunable look & feel, edited in the settings panel (settings.ts) and saved with the other settings.
 export const CFG_DEFAULTS = {
-  breath: 1, signalLoss: 1, signalSpeed: 1, signalJitter: 0.8, motion: 1, camDrift: 1, bloom: 1, fps: 60, spectrumPeriod: 120, rectFrom: 0.3, blockW: 0.45,
+  breath: 1, spikeHeight: 1.5, spikeFraction: 0.08, spikeSpeed: 1, signalLoss: 1, signalSpeed: 1, signalJitter: 0.8, motion: 1, camDrift: 1, bloom: 1, fps: 60, spectrumPeriod: 120, rectFrom: 0.3, blockW: 0.45,
   agentBox: true, agentOut: true, agentOpacity: 0.6, agentSpeed: 1,
 };
 export type CfgKey = keyof typeof CFG_DEFAULTS;

@@ -44,7 +44,7 @@ The session drawer (dashboard) and the detail panel (3D, `Enter`) show the full 
 
 When a sub-agent is running, a faded box in the bottom-right corner (mirroring the feed) shows the newest agent's type, model, description and the prompt it was given, with its recent output text drifting slowly upward behind a fade. It lingers ~25 s after the agent finishes. `?demo=agent` shows a fake one.
 
-Press `O` (or `,`) for the settings panel: palette, spectrum lap time, bloom, breathing, bar width and where the rectangular bars start, motion speed, camera drift, frame rate, HUD / voice / feed toggles and the agent box (on/off, output text, opacity, scroll speed). Everything is saved in this browser and `Reset to defaults` restores the look.
+Press `O` (or `,`) for the settings panel (every option is explained in [docs/settings.md](docs/settings.md)): palette, spectrum lap time, bloom, breathing, bar width and where the rectangular bars start, motion speed, camera drift, frame rate, HUD / voice / feed toggles and the agent box (on/off, output text, opacity, scroll speed). Everything is saved in this browser and `Reset to defaults` restores the look.
 
 ## What it reads
 

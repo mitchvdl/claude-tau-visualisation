@@ -59,8 +59,20 @@ for (let i = 0; i < 12; i++) hourTicks.setColorAt(i, new THREE.Color(1, 1, 1));
 export const clockStripes: { x: number; y: number; str: string }[] = [];
 export const hourCap = new THREE.Mesh(sphG, hdr(1)); hourCap.scale.setScalar(0.0095); core.add(hourCap);
 export const hourLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]), new THREE.LineBasicMaterial({ color: 0xffffff, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); hourLine.frustumCulled = false; core.add(hourLine);
-mats.min = new THREE.LineBasicMaterial({ color: 0xffffff, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false });
-export const minuteTicks = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(Array.from({ length: 60 }, (_, i) => i % 5 ? i : -1).filter((i) => i >= 0).flatMap((i) => { const a = Math.PI / 2 - (i / 60) * TAU; return [new THREE.Vector3(Math.cos(a), Math.sin(a), 0), new THREE.Vector3(Math.cos(a) * 1.025, Math.sin(a) * 1.025, 0)]; })), mats.min); core.add(minuteTicks);
+mats.min = new THREE.LineBasicMaterial({ vertexColors: true, color: 0xffffff, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false });
+// analog clock marks just inside the dial (the hour stripes stand outside): long double marks at 12/3/6/9, medium at the other hours, short ticks on the minutes
+export const minuteTicks = (() => {
+  const pos: number[] = [], col: number[] = [];
+  const add = (ang: number, len: number, b: number) => { const c = Math.cos(ang), sn = Math.sin(ang); pos.push(c, sn, 0, c * (1 - len), sn * (1 - len), 0); col.push(b, b, b, b, b, b); };
+  for (let i = 0; i < 60; i++) {
+    const a = Math.PI / 2 - (i / 60) * TAU;
+    if (i % 15 === 0) { add(a, 0.1, 1); add(a + 0.006, 0.1, 1); add(a - 0.006, 0.1, 1); }
+    else if (i % 5 === 0) add(a, 0.06, 0.75);
+    else add(a, 0.028, 0.4);
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  return new THREE.LineSegments(g, mats.min);
+})(); core.add(minuteTicks);
 export const dialLine = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(Array.from({ length: 160 }, (_, i) => new THREE.Vector3(Math.cos((i / 160) * TAU), Math.sin((i / 160) * TAU), 0))), mats.dial); core.add(dialLine);
 export const TRAIL = 28;
 export const trailGeo = new THREE.BufferGeometry(); trailGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(TRAIL * 3), 3)); trailGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(TRAIL * 3), 3));

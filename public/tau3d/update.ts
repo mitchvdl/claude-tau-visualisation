@@ -123,7 +123,7 @@ export function syncScene(now: number) {
     clockStripes.push({ x: Math.cos(th) * (dR + len / 2), y: Math.sin(th) * (dR + len / 2), str: `${String(c.hour).padStart(2, '0')}:00–${String((c.hour + 1) % 24).padStart(2, '0')}:00 · ${Math.round(c.calls)} calls · ${fmtCost(c.cost)}` });
   });
   hourTicks.instanceMatrix.needsUpdate = true; hourTicks.instanceColor.needsUpdate = true;
-  setC(hourCap.material, lin(Hh, 3.0)); setC(hourLine.material, lin(pal.core, 0.35)); minuteTicks.scale.setScalar(dR - 0.002 + 0.003 * CFG.breath * Math.sin(S.T * 0.9 - 0.9)); setC(mats.min, lin(pal.core, 0.22));
+  setC(hourCap.material, lin(Hh, 3.0)); setC(hourLine.material, lin(pal.core, 0.35)); minuteTicks.scale.setScalar(dR - 0.002 + 0.003 * CFG.breath * Math.sin(S.T * 0.9 - 0.9)); setC(mats.min, lin(pal.core, 0.9));
   dialLine.scale.setScalar(dR - 0.002);
   { const tm = Math.PI / 2 - (fm / 60) * TAU, mr = dR - 0.002 - 0.022; minuteHand.position.set(Math.cos(tm) * mr, Math.sin(tm) * mr, 0.002); minuteHand.rotation.set(0, 0, tm - Math.PI / 2); minuteHand.scale.set(0.0065, 0.044, 0.005); setC(minuteHand.material, lin(Hh, 4.2));
     const th = Math.PI / 2 - (fs / 60) * TAU, rr = dR - 0.002; clockState.x = Math.cos(th) * rr; clockState.y = Math.sin(th) * rr; clockState.str = String(curH).padStart(2, '0') + ':' + String(nd.getMinutes()).padStart(2, '0') + ':' + String(nd.getSeconds()).padStart(2, '0');

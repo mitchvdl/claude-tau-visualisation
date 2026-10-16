@@ -25,6 +25,9 @@ export function update(dt: number, adt: number) {
   const k = 1 - Math.exp(-dt / 0.22);
   for (let m = 0; m < 5; m++) mw[m] += ((m === S.mode ? 1 : 0) - mw[m]) * k;
   S.zoomCur += (S.zoom - S.zoomCur) * (1 - Math.exp(-dt / 0.15));
+  // auto spike: incoming activity (slow baseline from the series + event pulses that decay) raises spike height, share and speed over time
+  S.pulse *= Math.exp(-dt / 20); { const aT = clamp(view.act * 0.6 + S.pulse, 0, 1); S.spikeAct += (aT - S.spikeAct) * (1 - Math.exp(-dt / (aT > S.spikeAct ? 6 : 25))); }
+  S.spikeT += dt * CFG.spikeSpeed * (1 + 1.5 * CFG.autoSpeed * S.spikeAct);
   S.hue = (S.hue + dt / Math.max(5, CFG.spectrumPeriod)) % 1; const P = PALETTES[S.palIdx].name === 'SPECTRUM' ? spectrumAt(S.hue) : PALETTES[S.palIdx], kp = 1 - Math.exp(-dt / 0.25);
   for (const key of PAL_KEYS) for (let i = 0; i < 3; i++) pal[key][i] += (P[key][i] - pal[key][i]) * kp;
   pal.grain += (P.grain - pal.grain) * kp;
@@ -149,7 +152,7 @@ export function syncScene(now: number) {
     const ek = r.errK || 0, wk = r.warnK || 0;
     if (ek > 0.01) { const burst = hash(Math.floor(S.T * 0.9), r.seed * 0.01) > 0.62; const slot = Math.floor(S.T * (burst ? 19 : 2.6)); const h = hash(slot, r.seed * 0.01 + 3); u.uBlink.value = lerp(1, h < (burst ? 0.5 : 0.1) ? 0.1 : 1.35, ek); u.uDrop.value = burst ? 0.62 : 0.14; u.uJit.value = burst && h < 0.35 ? ek : 0; }
     else { u.uBlink.value = 1; u.uJit.value = 0; u.uDrop.value = 0; }
-    u.uLoss.value = S.sig * CFG.signalLoss * (0.35 + 0.65 * S.jit); u.uSpike.value = r.rect ? CFG.spikeHeight : 0; u.uSpikeP.value = CFG.spikeFraction; u.uSpikeS.value = CFG.spikeSpeed; u.uWait.value = r.waitK; u.uBeacon.value.set(...lin(beac, 1)); if (r.waitK > 0.01) u.uInt.value *= 1 + 0.9 * S.hb * r.waitK;
+    u.uLoss.value = S.sig * CFG.signalLoss * (0.35 + 0.65 * S.jit); u.uSpike.value = r.rect ? CFG.spikeHeight * (1 + 2.5 * CFG.autoHeight * S.spikeAct) : 0; u.uSpikeP.value = clamp(CFG.spikeFraction * (1 + 2 * CFG.autoFraction * S.spikeAct), 0, 0.6); u.uSpikeT.value = S.spikeT; u.uWait.value = r.waitK; u.uBeacon.value.set(...lin(beac, 1)); if (r.waitK > 0.01) u.uInt.value *= 1 + 0.9 * S.hb * r.waitK;
     u.uErr.value = ek; u.uWarn.value = wk * (0.35 + 0.65 * (0.5 + 0.5 * Math.sin(S.T * 1.7 + i)));
     const o = r.obj, tk = r.rect ? 0 : 1; o.rotation.set(r.tilt[0] * (0.7 + 0.3 * Math.sin(S.T * 0.13 + r.tilt[2])) * (1 - 0.8 * s1) * tk, r.tilt[1] * (0.7 + 0.3 * Math.cos(S.T * 0.11 + r.tilt[2])) * (1 - 0.8 * s1) * tk, 0); // block rings stay flat and concentric o.position.z = r.rect ? 0 : s1 * (i * 0.014 - 0.1); o.updateMatrix();
     o.visible = r.alpha > 0.02;

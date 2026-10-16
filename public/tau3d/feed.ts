@@ -1,4 +1,4 @@
-import { H } from './shared.ts';
+import { H, bumpActivity } from './shared.ts';
 import { base, fmtCost, fmtTok, shortModel, trunc } from './util.ts';
 import { feed, hm, hms, params } from './dom.ts';
 import type { FeedLine, FeedRow } from './dom.ts';
@@ -35,7 +35,7 @@ export function feedFlush() { // backfill: last ~15 lines in chronological order
   feed.flushed = true; feed.pre.sort((a, b) => a.ts - b.ts); feed.pre.slice(-15).forEach((x) => feedPush(x.kind, x.text, x.dim, true)); feed.pre.length = 0; feedSys('tau://feed online'); 
 }
 export function feedHistory() {
-  for (const h of (data.history || []).slice().reverse()) { const key = 'p:' + trunc(h.display, 60); if (feed.seen.has(key)) continue; feed.seen.add(key); feedEmit(h.ts || Date.now(), 'u', `> ${hm(h.ts || Date.now())} [${base(h.project)}] ${trunc(h.display, 90)}`); }
+  for (const h of (data.history || []).slice().reverse()) { const key = 'p:' + trunc(h.display, 60); if (feed.seen.has(key)) continue; feed.seen.add(key); if (feed.flushed) bumpActivity(0.25); feedEmit(h.ts || Date.now(), 'u', `> ${hm(h.ts || Date.now())} [${base(h.project)}] ${trunc(h.display, 90)}`); }
 }
 export const feedActive = (s: SessionSummary) => !!(s.isActive || feed.calls.has(s.id) && feed.ag.size && [...feed.ag.keys()].some((k) => k.startsWith(s.id + ':')));
 export function feedIngest(s: SessionSummary, d: SessionDetail) { // new lines from a session detail (active sessions only), diffed against what we saw before
@@ -53,7 +53,7 @@ export function feedIngest(s: SessionSummary, d: SessionDetail) { // new lines f
   if (lastT != null && fr.length > 8) { feedEmit(now, 'c', `· … +${fr.length - 5} more calls`, proj); fr = fr.slice(-5); }
   for (const c of fr) feedEmit(c.t, 'c', `· ${hms(c.t)} ${shortModel(c.model)} ctx ${fmtTok(c.ctx)}  ${c.agentId ? agName.get(c.agentId) || 'agent' : 'main'}`, proj);
   const ps = d.prompts || [], lp = feed.prm.get(s.id), np = lp == null ? ps.slice(-2) : ps.filter((p) => Date.parse(p.ts) > lp); feed.prm.set(s.id, ps.length ? Date.parse(ps[ps.length - 1].ts) : 0);
-  for (const p of np) { const key = 'p:' + trunc(p.text, 60); if (feed.seen.has(key)) continue; feed.seen.add(key); const t = Date.parse(p.ts) || now; feedEmit(t, 'u', `> ${hm(t)} [${proj}] ${trunc(p.text, 90)}`); }
+  for (const p of np) { const key = 'p:' + trunc(p.text, 60); if (feed.seen.has(key)) continue; feed.seen.add(key); const t = Date.parse(p.ts) || now; if (feed.flushed) bumpActivity(0.25); feedEmit(t, 'u', `> ${hm(t)} [${proj}] ${trunc(p.text, 90)}`); }
 }
 setInterval(() => { if (feed.flushed && performance.now() - feed.lastLine > 10000 && !data.lost && data.summary) { const sm = data.summary; feedPush('s', `· ${hms(Date.now())} idle — ${sm.activeAgents || 0} agents awake, cache ${((sm.totals.cacheHit || 0) * 100).toFixed(1)}%`); } }, 2000);
 setTimeout(feedFlush, 3500);

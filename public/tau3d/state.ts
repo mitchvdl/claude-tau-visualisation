@@ -1,4 +1,4 @@
-import { H, S } from './shared.ts';
+import { H, S, bumpActivity } from './shared.ts';
 import { TAU, clamp, ease, hash, lerp, trunc } from './util.ts';
 import { params } from './dom.ts';
 import { modelColor, pal } from './palettes.ts';
@@ -74,6 +74,7 @@ export function receiveFromDelta(a: SummaryResponse, b: SummaryResponse): void {
   if (!(dc > 0 || dt > 0)) return;
   const wids = H.waitIds(), dsf = (data.sessDiff || []).filter((d) => !wids.has(d.id)); if ((data.sessDiff || []).length && !dsf.length) return; // the only activity is on a waiting session
   recv.pendCalls += Math.max(dc, 0); for (const d of dsf) { const q = recv.pend.get(d.id); if (q) { q.dC += d.dC; q.dT += d.dT; q.dO += d.dO; q.s = d.s; } else recv.pend.set(d.id, { ...d }); }
+  bumpActivity(0.08 + 0.3 * clamp(Math.log10(1 + Math.max(dc, 0)) / 1.7, 0, 1));
   const now = performance.now();
   if (now - recv.lastFull < 20000) { if (recv.on || view.wg > 0.02) recv.sparkle = 1; else if (now - recv.lastShim > 6000) { recv.lastShim = now; triggerReceive(0.12, ctxFromPend()); } return; }
   const amp = 0.1 + 0.9 * clamp(Math.log10(1 + recv.pendCalls) / 1.7, 0, 1); const ctx = ctxFromPend(); recv.pendCalls = 0; recv.pend.clear(); triggerReceive(amp, ctx);

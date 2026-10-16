@@ -1,4 +1,4 @@
-import { CFG } from './shared.ts';
+import { CFG, bumpActivity } from './shared.ts';
 import { $, params } from './dom.ts';
 import { shortModel } from './util.ts';
 import type { SessionDetail, SessionSummary } from '../../src/types.ts';
@@ -22,8 +22,10 @@ export function agentIngest(s: SessionSummary, d: SessionDetail) {
   const now = Date.now();
   for (const a of d.agents || []) {
     const key = s.id + ':' + a.id; let t = tracks.get(key);
+    const isNew = !t, young = performance.now() > 6000; // ignore the agents that already exist when the page loads
     if (!t) { t = { key, type: '', model: '', desc: '', prompt: '', seen: '', text: '', active: false, startedAt: Date.parse(a.first || '') || now, doneAt: 0, rev: 0 }; tracks.set(key, t); }
     if (t.active && !a.isActive) t.doneAt = now; else if (a.isActive) t.doneAt = 0;
+    if (young && a.isActive && (isNew || !t.active)) bumpActivity(0.35); // a new agent spawned
     t.active = !!a.isActive; t.type = a.type || 'agent'; t.model = shortModel((a.models || [])[0]); t.desc = a.description || ''; t.prompt = a.prompt || t.prompt;
     appendTail(t, a.tail || '');
   }
